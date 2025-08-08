@@ -66,33 +66,34 @@ export default function CreateUser() {
   };
 
   // Profile image upload handler calling your custom backend API (/api/upload)
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+ const handleFileChange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    setLoadingBtn(true);
-    setError("");
+  setLoadingBtn(true);
+  setError("");
 
-    const data = new FormData();
-    data.append("file", file);
+  const data = new FormData();
+  data.append("file", file);
 
-    try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: data,
-      });
-      if (!res.ok) throw new Error("Upload failed");
-      const uploadData = await res.json();
-      setFormData((prev) => ({
-        ...prev,
-        profileImgUrl: uploadData.url,
-      }));
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoadingBtn(false);
-    }
-  };
+  try {
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: data,
+    });
+    if (!res.ok) throw new Error("Upload failed");
+    const uploadData = await res.json();
+    setFormData((prev) => ({
+      ...prev,
+      profileImgUrl: uploadData.url, // Cloudinary URL
+    }));
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoadingBtn(false);
+  }
+};
+
 
   // Handle form submission to create a new user via your backend API (/api/admin)
   const handleSignup = async (e) => {
