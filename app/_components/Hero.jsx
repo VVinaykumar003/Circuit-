@@ -50,7 +50,7 @@ function Hero() {
               Simplify Your Project Management
             </h2>
 
-            <p className="mt-4 text-gray-600">
+            <p className="mt-4 text-yellow-400">
               Take control of your projects with our comprehensive management
               system. From task tracking to resource allocation, we provide all
               the tools you need to succeed.
@@ -68,9 +68,9 @@ function Hero() {
             {cardData.map((card, index) => (
               <Link
                 key={index}
-                className="block rounded-xl border bg-white dark:bg-slate-950  border-gray-100 p-4 shadow-sm hover:border-gray-200 hover:ring-1 hover:ring-gray-200 focus:outline-none focus:ring"
+                className="block rounded-xl border bg-white dark:bg-slate-950  border-gray-100 p-4 shadow-sm hover:border-gray-200 hover:ring-1 hover:ring-yellow-200 focus:outline-none focus:ring"
                 href={card.url}
-              >
+              > 
                 <span className="inline-block rounded-lg bg-gray-200 dark:bg-slate-700  p-3">
                   <svg
                     className="size-6"
@@ -93,7 +93,7 @@ function Hero() {
 
                 <h2 className="mt-2 font-bold">{card.title}</h2>
 
-                <p className="hidden sm:mt-1 sm:block sm:text-sm sm:text-gray-600">
+                <p className="hidden sm:mt-1 sm:block sm:text-sm sm:text-yellow-400">
                   {card.description}
                 </p>
               </Link>

@@ -2,43 +2,49 @@
 import React, { useEffect, useState } from "react";
 import SideNav from "./_components/SideNav";
 import DashboardHeader from "./_components/DashboardHeader";
-import { auth } from "@/lib/firebase"; // Ensure this import matches your Firebase file
-import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { getUserData } from "@/lib/getUserData";
+
 function Layout({ children }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-const [userProfileState, setUserProfileState] = useState("")
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth,async (user) => {
-      if (user) {
-        setUser(user);
-        const userData = await getUserData();
-        setUserProfileState(userData.profileState)
-        setLoading(false);
-      } else {
-        setUser(null);
-        setLoading(false);
-        router.push("/login");
-      }
-    });
+  const [userProfileState, setUserProfileState] = useState("");
 
-    // Cleanup the subscription on component unmount
-    return () => unsubscribe();
-  }, [router]);
+  useEffect(() => {
+  async function fetchSession() {
+    try {
+      const res = await fetch("/api/auth/session");
+      if (!res.ok) {
+        setUser(null);
+        router.push("/login");
+        return;
+      }
+      const userData = await res.json();
+      setUser(userData);
+      setUserProfileState(userData.profileState);
+    } catch {
+      setUser(null);
+      router.push("/login");
+    } finally {
+      setLoading(false);
+    }
+  }
+  fetchSession();
+}, [router]);
+
+
   useEffect(() => {
     if (userProfileState === "deactived") {
-      setLoading(true)
+      setLoading(true);
       router.push("/not-allowed");
     }
-  }, [userProfileState]);
+  }, [userProfileState, router]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
-        <div className="loader">Loading...</div>{" "}
-        {/* Replace with your loader component or style */}
+        <div className="loader">Loading...</div>
+        {/* Replace with your loader spinner/component */}
       </div>
     );
   }

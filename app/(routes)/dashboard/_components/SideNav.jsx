@@ -1,48 +1,50 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { auth } from "@/lib/firebase";
-import { signOut, onAuthStateChanged } from "firebase/auth";
 import { Button } from "@/components/ui/button";
-import { getUserData } from "@/lib/getUserData";
-import { MdSpaceDashboard } from "react-icons/md";
-import { MdGroups } from "react-icons/md";
 import { MdNotifications } from "react-icons/md";
 import { ImUserPlus } from "react-icons/im";
 import { FaFileCirclePlus } from "react-icons/fa6";
 import { RiFolderChartFill } from "react-icons/ri";
 import { FaCopy } from "react-icons/fa";
 import { HiMiniUserGroup } from "react-icons/hi2";
+// import { setSession } from "@/app/api/auth/session/route";
+// import { setSession, deleteSession } from "@/app/api/auth/session/route"; // Adjust the import path as necessary
+//F:\Projects\Circuit\TaskZ\app\(routes) F:\Projects\Circuit\TaskZ\app\(routes)
 function SideNav() {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const path = usePathname();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const data = await getUserData();
-          setUserRole(data.role);
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        } finally {
-          setLoading(false);
+    async function fetchSession() {
+      try {
+        const res = await fetch("/api/auth/session");
+        if (!res.ok) {
+          setUserRole(null);
+          router.push("/login");
+          return;
         }
-      } else {
+
+        const data = await res.json();
+        setUserRole(data.role);
+      } catch (error) {
         setUserRole(null);
+        router.push("/login");
+      } finally {
         setLoading(false);
       }
-    });
-
-    return () => unsubscribe();
-  }, []);
+    }
+    fetchSession();
+  }, [router]);
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
-      // Redirect or show a message if needed
+      await fetch("/api/auth/logout", { method: "POST" }); // Implement this API route to clear session
+      router.push("/login");
     } catch (error) {
       console.error("Sign out error:", error);
     }
@@ -66,44 +68,40 @@ function SideNav() {
       id: 3,
       name: "Add New User",
       path: "/dashboard/create",
-      icon: <ImUserPlus className="text-xl"/>,
+      icon: <ImUserPlus className="text-xl" />,
     },
     userRole !== "member" && {
       id: 4,
       name: "Create Project",
       path: "/dashboard/create-project",
-      icon: <FaFileCirclePlus className="text-xl"/>,
+      icon: <FaFileCirclePlus className="text-xl" />,
     },
     {
       id: 5,
       name: "Notifications",
       path: "/dashboard/notifications",
-      icon: <MdNotifications className="text-xl"/>,
+      icon: <MdNotifications className="text-xl" />,
     },
     {
       id: 6,
-      name: "Community",
+      name: "Members",
       path: "/dashboard/profiles",
-      icon: <HiMiniUserGroup className="text-xl"/>,
+      icon: <HiMiniUserGroup className="text-xl" />,
     },
-  ].filter(Boolean); // Remove any falsey values
-
-  const path = usePathname();
+  ].filter(Boolean); // Remove falsy (non-admin links for member)
 
   if (loading) {
     return (
       <div className="h-full md:h-screen p-5 flex flex-col justify-between border bg-white dark:bg-slate-950 shadow-sm">
-        {/* Loading State */}
         <div className="flex-grow flex justify-center items-center">
-          <div className="loader">Loading...</div>{" "}
-          {/* Replace with your loader component or style */}
+          <div className="loader">Loading...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full md:h-screen p-5 flex flex-col justify-between border dark:bg-slate-950  bg-white shadow-sm">
+    <div className="h-full md:h-screen p-5 flex flex-col justify-between border dark:bg-slate-950 bg-white shadow-sm">
       {/* Logo Section */}
       <div className="border-b">
         <div className="flex flex-row gap-2 mb-2 w-full justify-center items-center">
@@ -116,29 +114,26 @@ function SideNav() {
           />
           <Link href={"/"}>
             <span className="text-slate-800 dark:text-white font-bold text-xl">
-              ZagerStream
+              Circuit
             </span>
           </Link>
         </div>
       </div>
-
       {/* Menu Section */}
       <div className="flex-grow flex flex-col justify-center">
-        {menuList.map((menu, index) => (
-          <Link href={menu.path} key={index}>
+        {menuList.map((menu) => (
+          <Link href={menu.path} key={menu.id}>
             <h2
-              className={`flex gap-2  text-gray-600 font-medium mb-4 p-3 cursor-pointer rounded-lg
+              className={`flex gap-2 text-gray-600 font-medium mb-4 p-3 cursor-pointer rounded-lg
                 hover:bg-blue-50 items-center hover:text-blue-800 transition-colors duration-200
-                ${path === menu.path && "text-white dark bg-blue-500"}`}
+                ${path === menu.path && "text-white bg-blue-500 dark:bg-blue-500"}`}
             >
-
               {menu.icon}
               {menu.name}
             </h2>
           </Link>
         ))}
       </div>
-
       {/* Sign Out Section */}
       <div className="flex justify-center items-center">
         <Button

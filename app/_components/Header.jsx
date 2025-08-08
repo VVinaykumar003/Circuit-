@@ -2,46 +2,45 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
-import { getUserData } from "@/lib/getUserData"; // Import the function to get user data
-import { auth } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
-import  UserHoverCard  from "./UserHoverCard";
+import { useRouter } from "next/navigation";
+import UserHoverCard from "./UserHoverCard";
 
 export default function Header() {
   const [userData, setUserData] = useState(null);
-  const [isImageLoaded, setIsImageLoaded] = useState(false); // Initialize as false
+  const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const data = await getUserData();
-          setUserData(data);
-        } catch (error) {
-          console.error("Error fetching user data:", error);
+    async function fetchUserSession() {
+      try {
+        // F:\Projects\Circuit\TaskZ\app\api\auth\session
+        const res = await fetch("/api/auth/session"); 
+        if (!res.ok) {
+          setUserData(null);
+          return;
         }
-      } else {
-        setUserData(null); // Clear user data if not authenticated
-        setIsImageLoaded(false); // Reset image loading state
+        const data = await res.json();
+        setUserData(data);
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        setUserData(null);
       }
-    });
+    }
 
-    return () => unsubscribe();
+    fetchUserSession();
   }, []);
 
   return (
-    <div className="p-5 flex bg-white dark:bg-slate-950  justify-between items-center border shadow-sm">
+    <div className="p-5 flex bg-white dark:bg-slate-950 justify-between items-center border shadow-sm">
       <div className="flex flex-row items-center justify-center gap-2">
         <Image
           src={"/logo.png"}
-          className="rounded-full "
+          className="rounded-full"
           alt="logo"
           width={40}
           height={25}
         />
-        <span className="text-blue-800 font-bold dark:text-white text-xl">
-          ZagerStream
+        <span className="text-blue-800 font-bold dark:text-white text-3xl">
+          Circuit
         </span>
       </div>
 
@@ -54,7 +53,7 @@ export default function Header() {
           )}
         </Link>
         {userData ? (
-          <div className="relative w-10 h-10 ">
+          <div className="relative w-10 h-10">
             <UserHoverCard email={userData.email} />
           </div>
         ) : (

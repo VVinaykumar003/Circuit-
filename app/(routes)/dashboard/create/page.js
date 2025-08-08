@@ -4,10 +4,6 @@ import React, { useState, useEffect } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Image from "next/image";
-import { getUserData } from "@/lib/getUserData";
-import { storage, auth } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -18,7 +14,6 @@ export default function CreateUser() {
     email: "",
     password: "",
     confirmPassword: "",
-    profileImg: null,
     profileImgUrl: "",
     name: "",
     gender: "",
@@ -27,86 +22,85 @@ export default function CreateUser() {
     dateOfBirth: "",
     profileState: "active",
   });
+
   const router = useRouter();
   const [currentUserRole, setCurrentUserRole] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingBtn, setLoadingBtn] = useState(false);
 
+  // Fetch current user role from your backend session API
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const userData = await getUserData();
-          setCurrentUserRole(userData.role);
-        } catch (err) {
-          setError(`Error fetching user data: ${err.message}`);
-        } finally {
-          setLoading(false);
+    async function fetchUserRole() {
+      try {
+        const res = await fetch("/api/auth/session");
+        if (res.ok) {
+          const user = await res.json();
+          setCurrentUserRole(user.role);
+        } else {
+          router.push("/login");
         }
-      } else {
-        setError("No authenticated user.");
+      } catch {
+        setError("Cannot fetch user session");
+        router.push("/login");
+      } finally {
         setLoading(false);
-        router.push("/login"); // Redirect to the login page if no user is authenticated
       }
-    });
-
-    return () => unsubscribe(); // Clean up the subscription on component unmount
-  }, []);
-
-  // New useEffect to handle redirection after role is set
-  useEffect(() => {
-    if (currentUserRole === "member") {
-      router.push("/dashboard"); // Redirect members to the dashboard
     }
-  }, [currentUserRole]);
+    fetchUserRole();
+  }, [router]);
 
+  // Handle input and select changes, with phone number formatting
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-
     if (name === "phoneNumber") {
-      const digitsOnly = value.replace(/\D/g, ""); // Remove non-digit characters
-      let formattedPhoneNumber = digitsOnly;
-
-      // Automatically add +91 if not already present
-      if (!formattedPhoneNumber.startsWith("91")) {
-        formattedPhoneNumber = `91${formattedPhoneNumber}`;
+      const digitsOnly = value.replace(/\D/g, "");
+      let formatted = digitsOnly;
+      if (!formatted.startsWith("91")) {
+        formatted = `91${formatted}`;
       }
-
-      setFormData({
-        ...formData,
-        [name]: formattedPhoneNumber,
-      });
+      setFormData((prev) => ({ ...prev, phoneNumber: formatted }));
     } else {
-      setFormData({ ...formData, [name]: value });
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
+  // Profile image upload handler calling your custom backend API (/api/upload)
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const storageRef = ref(storage, `profileImages/${file.name}`);
-      try {
-        await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(storageRef);
-        setFormData({
-          ...formData,
-          profileImg: file,
-          profileImgUrl: downloadURL,
-        });
-      } catch (err) {
-        setError("Failed to upload profile image. Please try again.");
-        console.error("File upload error: ", err);
-      }
+    if (!file) return;
+
+    setLoadingBtn(true);
+    setError("");
+
+    const data = new FormData();
+    data.append("file", file);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: data,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const uploadData = await res.json();
+      setFormData((prev) => ({
+        ...prev,
+        profileImgUrl: uploadData.url,
+      }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingBtn(false);
     }
   };
 
+  // Handle form submission to create a new user via your backend API (/api/admin)
   const handleSignup = async (e) => {
     e.preventDefault();
     setLoadingBtn(true);
     setError("");
 
-    // Check for required fields
+    // Basic validations
     const requiredFields = [
       "email",
       "password",
@@ -125,7 +119,6 @@ export default function CreateUser() {
         return;
       }
     }
-
     if (!formData.profileImgUrl) {
       setError("Please upload a profile image");
       setLoadingBtn(false);
@@ -136,7 +129,6 @@ export default function CreateUser() {
       setLoadingBtn(false);
       return;
     }
-
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
       setLoadingBtn(false);
@@ -144,23 +136,22 @@ export default function CreateUser() {
     }
 
     try {
+      // Send formData without profileImg (file) as backend only requires profileImgUrl
       const response = await fetch("/api/admin", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-
       const result = await response.json();
 
       if (response.ok) {
         toast.success("User created successfully!");
+
+        // Reset form except keep gender and role clear for admin role, else reset all
         setFormData({
           email: "",
           password: "",
           confirmPassword: "",
-          profileImg: null,
           profileImgUrl: "",
           name: "",
           gender: currentUserRole === "admin" ? "" : formData.gender,
@@ -171,25 +162,21 @@ export default function CreateUser() {
         });
       } else {
         setError(result.error || "Error creating user");
-        setLoadingBtn(false);
       }
     } catch (err) {
-      setError(`Error: ${err.message}`);
-      console.error("Signup error: ", err);
+      setError(err.message);
+    } finally {
       setLoadingBtn(false);
     }
-    setLoadingBtn(false);
   };
 
-  if (loading) {
-    return <div className="text-center ">Loading...</div>;
-  }
+  if (loading) return <div className="text-center">Loading...</div>;
 
   return (
-    <div className="max-w-4xl mx-auto p-6 py- bg-white dark:bg-gray-900 rounded-lg shadow-md">
+    <div className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
       <h2 className="text-2xl font-bold mb-4 text-center">Create New User</h2>
       <form onSubmit={handleSignup}>
-        <div className="flex flex-col md:flex-row  justify-center gap-2 md:gap-3 lg:gap-8 w-full mb mb-4">
+        <div className="flex flex-col md:flex-row justify-center gap-2 md:gap-3 lg:gap-8 w-full mb-4">
           {formData.profileImgUrl ? (
             <div className="w-20 h-20 rounded-full border border-slate-400 overflow-hidden">
               <Image
@@ -197,7 +184,7 @@ export default function CreateUser() {
                 alt="Profile"
                 width={96}
                 height={96}
-                className="object-cover "
+                className="object-cover"
               />
             </div>
           ) : (
@@ -218,7 +205,7 @@ export default function CreateUser() {
               accept="image/*"
               onChange={handleFileChange}
               className="block cursor-pointer text-gray-600 dark:text-gray-300"
-              required
+              required={!formData.profileImgUrl}
             />
           </div>
         </div>
@@ -254,7 +241,7 @@ export default function CreateUser() {
               id="email"
               name="email"
               value={formData.email}
-              placeholder="Enter Valid Email"
+              placeholder="Enter valid email"
               onChange={handleInputChange}
               className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
               required
@@ -271,7 +258,7 @@ export default function CreateUser() {
               type="password"
               id="password"
               name="password"
-              placeholder="Make Strong password"
+              placeholder="Make strong password"
               value={formData.password}
               onChange={handleInputChange}
               className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
@@ -351,7 +338,7 @@ export default function CreateUser() {
               type="text"
               id="phoneNumber"
               name="phoneNumber"
-              placeholder="Enter your phone Number"
+              placeholder="Enter your phone number"
               value={formData.phoneNumber}
               onChange={handleInputChange}
               className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
@@ -402,13 +389,12 @@ export default function CreateUser() {
         </div>
 
         {error && (
-          <div className="mb-4 p-2 text-red-700 bg-red-100 rounded">
-            {error}
-          </div>
+          <div className="mb-4 p-2 text-red-700 bg-red-100 rounded">{error}</div>
         )}
+
         <Button
           type="submit"
-          className={`w-full py-3 mt-4 rounded-lg  font-semibold transition-colors ${
+          className={`w-full py-3 mt-4 rounded-lg font-semibold transition-colors ${
             loadingBtn ? "bg-gray-400 cursor-not-allowed" : ""
           }`}
           disabled={loadingBtn}

@@ -7,7 +7,7 @@ import NotificationPermission from "./_components/NotificationPermission";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "ZagerStream",
+  title: "Circuit ",
   description: "Start your journey with Zager Digital Services since 2017",
 };
 

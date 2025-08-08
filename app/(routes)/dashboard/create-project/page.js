@@ -1,12 +1,10 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
-import { firestore, auth } from "@/lib/firebase";
-import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { getUserData, getAllUsers } from "@/lib/getUserData";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,8 +30,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
-import Image from "next/image";
+import { CaretSortIcon } from "@radix-ui/react-icons";
 
 const CreateProject = () => {
   const [formData, setFormData] = useState({
@@ -53,37 +50,46 @@ const CreateProject = () => {
   const [selectedRole, setSelectedRole] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedUserData, setSelectedUserData] = useState(null);
-  const [selectedDepartment, setSelectedDepartment] = useState("");
   const [selectedResponsibility, setSelectedResponsibility] = useState("");
   const [emailOptions, setEmailOptions] = useState([]);
-  const [filteredOptions, setFilteredOptions] = useState(emailOptions);
   const router = useRouter();
 
   useEffect(() => {
-    // Fetch all users for selection
-    const fetchUsers = async () => {
+    async function fetchUserRole() {
       try {
-        const users = await getAllUsers();
+        const res = await fetch("/api/auth/session");
+        if (res.ok) {
+          const user = await res.json();
+          setCurrentUserRole(user.role);
+        } else {
+          router.push("/login");
+        }
+      } catch {
+        setError("Cannot fetch user session");
+        router.push("/login");
+      }
+    }
+    fetchUserRole();
+  }, [router]);
+
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const res = await fetch("/api/users");
+        if (!res.ok) throw new Error("Failed to fetch users");
+        const users = await res.json();
         setAllUsers(users);
-        setEmailOptions(
-          users.map((user) => ({ value: user.email, label: user.email }))
-        );
+        setEmailOptions(users.map((user) => ({ value: user.email, label: user.email })));
       } catch (err) {
         setError(`Error fetching users: ${err.message}`);
       }
-    };
-
+    }
     fetchUsers();
   }, []);
 
-  const handleSelect = (currentValue) => {
-    // Find the selected user
-    const user = allUsers.find((user) => user.email === currentValue);
-
+  const handleSelect = (email) => {
+    const user = allUsers.find((u) => u.email === email);
     if (user) {
-      // If there's already a selected user, handle that (e.g., show an alert or do nothing)
-
-      // Set the selected user data and update email options
       setSelectedUser(user.email);
       setSelectedUserData(user);
     }
@@ -95,58 +101,46 @@ const CreateProject = () => {
       setFormData((prev) => ({
         ...prev,
         roles: checked
-          ? [...prev.roles, value]
-          : prev.roles.filter((role) => role !== value),
+          ? [...(prev.roles || []), value]
+          : (prev.roles || []).filter((role) => role !== value),
       }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  // Validate project name
-  const validateProjectName = (name) => {
-    const regex = /^[a-zA-Z0-9-_]+$/;
-    return regex.test(name);
-  };
+  const validateProjectName = (name) => /^[a-zA-Z0-9-_]+$/.test(name);
 
-  // Validate dates
-  const validateDates = (startDate, endDate) => {
-    return new Date(startDate) <= new Date(endDate);
-  };
+  const validateDates = (start, end) => new Date(start) <= new Date(end);
 
   const handleAddParticipant = () => {
     if (!selectedUser || !selectedRole || !selectedResponsibility) {
       toast.error("Please select all fields for the participant.");
       return;
     }
-
     if (participants.find((p) => p.email === selectedUser)) {
       toast.error("Participant already added.");
       return;
     }
-
-    setParticipants([
-      ...participants,
+    setParticipants((prev) => [
+      ...prev,
       {
         email: selectedUser,
         role: selectedRole,
         responsibility: selectedResponsibility,
-        profileImage: selectedUserData?.profileImgUrl,
-        userRole: selectedUserData?.role,
-        username: selectedUserData?.name,
+        profileImage: selectedUserData?.profileImgUrl || "/user.png",
+        userRole: selectedUserData?.role || "No Role",
+        username: selectedUserData?.name || "Unknown User",
       },
     ]);
-
-    setEmailOptions(emailOptions);
-
     setSelectedUser(null);
-    setSelectedRole(""); // Reset selectedRole
+    setSelectedRole("");
     setSelectedResponsibility("");
   };
 
   const handleRemoveParticipant = (email) => {
-    setParticipants(participants.filter((p) => p.email !== email));
-    setEmailOptions([...emailOptions, { value: email, label: email }]);
+    setParticipants((prev) => prev.filter((p) => p.email !== email));
+    setEmailOptions((prev) => [...prev, { value: email, label: email }]);
   };
 
   const handleSubmit = async (e) => {
@@ -168,7 +162,6 @@ const CreateProject = () => {
       return;
     }
 
-    // Check if there's exactly one project manager
     const projectManagerCount = participants.filter(
       (p) => p.responsibility === "project-manager"
     ).length;
@@ -178,7 +171,6 @@ const CreateProject = () => {
       return;
     }
 
-    // Check if there's at least one project member
     const projectMemberCount = participants.filter(
       (p) => p.responsibility === "project-member"
     ).length;
@@ -189,30 +181,33 @@ const CreateProject = () => {
     }
 
     try {
-      const normalizedProjectName = formData.projectName.toLowerCase();
-      const projectsRef = collection(firestore, "projects");
-      const q = query(
-        projectsRef,
-        where("projectName", "==", normalizedProjectName)
-      );
-      const querySnapshot = await getDocs(q);
+      // Normalize projectName for uniqueness check
+      const normalizedName = formData.projectName.toLowerCase();
 
-      if (!querySnapshot.empty) {
-        throw new Error("Project name already exists");
+      // Check uniqueness by calling your API endpoint
+      const checkRes = await fetch(`/api/projects/check?name=${normalizedName}`);
+      if (!checkRes.ok) {
+        const checkData = await checkRes.json();
+        if (checkData.exists) {
+          throw new Error("Project name already exists");
+        }
       }
 
-      await addDoc(projectsRef, {
-        ...formData,
-        projectName: normalizedProjectName,
-
-        participants,
+      // Create project via API
+      const createRes = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          projectName: normalizedName,
+          participants,
+        }),
       });
 
-      const projectUpdatesRef = collection(firestore, "projectUpdates");
-      await addDoc(projectUpdatesRef, {
-        projectName: normalizedProjectName,
-        updates: [],
-      });
+      if (!createRes.ok) {
+        const errorData = await createRes.json();
+        throw new Error(errorData.message || "Failed to create project");
+      }
 
       toast.success("Project created successfully!");
       router.push("/dashboard");
@@ -225,37 +220,14 @@ const CreateProject = () => {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const userData = await getUserData();
-          setCurrentUserRole(userData.role);
-        } catch (err) {
-          setError(`Error fetching user data: ${err.message}`);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setError("No authenticated user.");
-        setLoading(false);
-        router.push("/login");
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
     if (currentUserRole === "member") {
       router.push("/dashboard");
     }
-  }, [currentUserRole]);
+  }, [currentUserRole, router]);
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-center">
-        Create New Project
-      </h2>
+      <h2 className="text-2xl font-bold mb-6 text-center">Create New Project</h2>
       <Tabs
         defaultValue="info"
         value={activeTab}
@@ -271,8 +243,8 @@ const CreateProject = () => {
             <CardHeader>
               <CardTitle>Project Information</CardTitle>
               <CardDescription>
-                Provide project details and proceed to the next tab to create
-                the project.
+                Provide project details and proceed to the next tab to create the
+                project.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -335,9 +307,7 @@ const CreateProject = () => {
                   >
                     <option value="">Select a domain</option>
                     <option value="web-development">Web Development</option>
-                    <option value="android-development">
-                      Android Development
-                    </option>
+                    <option value="android-development">Android Development</option>
                     <option value="social-media">Social Media</option>
                     <option value="blockchain">Blockchain</option>
                     <option value="aiml">AI/ML</option>
@@ -364,9 +334,7 @@ const CreateProject = () => {
             <CardContent>
               <Button
                 onClick={() =>
-                  document
-                    .getElementById("participantsForm")
-                    .classList.toggle("hidden")
+                  document.getElementById("participantsForm").classList.toggle("hidden")
                 }
                 className="mb-4"
               >
@@ -391,18 +359,26 @@ const CreateProject = () => {
                             <Button
                               variant="outline"
                               role="combobox"
-                              aria-expanded={open}
-                              className="justify-between w-full "
+                              aria-expanded={false}
+                              className="justify-between w-full"
                             >
                               {selectedUser ? selectedUser : "Select user..."}
                               <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className=" p-0">
+                          <PopoverContent className="p-0">
                             <Command>
                               <CommandInput
                                 placeholder="Search user..."
                                 className="h-9"
+                                onChange={(e) => {
+                                  const val = e.target.value.toLowerCase();
+                                  setEmailOptions(
+                                    allUsers
+                                      .filter((user) => user.email.toLowerCase().includes(val))
+                                      .map((user) => ({ value: user.email, label: user.email }))
+                                  );
+                                }}
                               />
                               <CommandList>
                                 <CommandEmpty>No user found.</CommandEmpty>
@@ -411,40 +387,33 @@ const CreateProject = () => {
                                     <CommandItem
                                       key={option.value}
                                       value={option.value}
-                                      onSelect={() =>
-                                        handleSelect(option.value)
-                                      }
+                                      onSelect={handleSelect}
                                     >
                                       <div className="flex items-center space-x-4">
-                                        {/* User profile image */}
                                         <Image
                                           src={
                                             allUsers.find(
-                                              (user) =>
-                                                user.email === option.value
+                                              (user) => user.email === option.value
                                             )?.profileImgUrl || "/user.png"
                                           }
                                           alt="User Avatar"
-                                          width={40} // Set width as per your design requirement
-                                          height={40} // Set height as per your design requirement
+                                          width={40}
+                                          height={40}
                                           className="w-10 h-10 rounded-full object-cover"
                                         />
                                         <div className="flex-1">
                                           <div className="font-semibold">
                                             {allUsers.find(
-                                              (user) =>
-                                                user.email === option.value
+                                              (user) => user.email === option.value
                                             )?.name || "Unknown User"}
                                           </div>
                                           <div className="text-sm text-gray-600">
                                             {allUsers.find(
-                                              (user) =>
-                                                user.email === option.value
+                                              (user) => user.email === option.value
                                             )?.email || option.value}
                                             <br />
                                             {allUsers.find(
-                                              (user) =>
-                                                user.email === option.value
+                                              (user) => user.email === option.value
                                             )?.role || "No Role"}
                                           </div>
                                         </div>
@@ -469,7 +438,6 @@ const CreateProject = () => {
                           className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
                         >
                           <option value="">Select Role</option>
-
                           <option value="content">Content</option>
                           <option value="research">Research</option>
                           <option value="design">Design</option>
@@ -491,15 +459,11 @@ const CreateProject = () => {
                         <select
                           id="responsibility"
                           value={selectedResponsibility}
-                          onChange={(e) =>
-                            setSelectedResponsibility(e.target.value)
-                          }
+                          onChange={(e) => setSelectedResponsibility(e.target.value)}
                           className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
                         >
                           <option value="">Select Responsibility</option>
-                          <option value="project-manager">
-                            Project Manager
-                          </option>
+                          <option value="project-manager">Project Manager</option>
                           <option value="project-member">Project Member</option>
                         </select>
                       </div>
@@ -507,10 +471,7 @@ const CreateProject = () => {
                   </div>
                   <Button
                     type="submit"
-                    onClick={handleAddParticipant}
-                    disabled={
-                      !selectedUser || !selectedRole || !selectedResponsibility
-                    }
+                    disabled={!selectedUser || !selectedRole || !selectedResponsibility}
                   >
                     Add Participant
                   </Button>
@@ -525,19 +486,17 @@ const CreateProject = () => {
                       key={participant.email}
                       className="flex lg:justify-between lg:flex-row flex-col lg:items-center border p-2 rounded-md"
                     >
-                      <div className="flex md:items-center items-start md:justify-between flex-col  md:flex-row  gap-1 space-x-4">
+                      <div className="flex md:items-center items-start md:justify-between flex-col md:flex-row gap-1 space-x-4">
                         <div className="flex flex-row items-center gap-1">
                           <Image
                             src={participant.profileImage}
                             alt="User Avatar"
-                            width={40} // Adjust width if needed
-                            height={40} // Adjust height if needed
+                            width={40}
+                            height={40}
                             className="w-10 h-10 rounded-full object-cover"
                           />
                           <div className="flex-1">
-                            <div className="font-semibold">
-                              {participant.username}
-                            </div>
+                            <div className="font-semibold">{participant.username}</div>
                             <div className="text-sm text-gray-600">
                               {participant.email}
                               <br />
@@ -545,8 +504,8 @@ const CreateProject = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="flex flex-col gap-1 mb-2     border  border-slate-200 p-2 rounded-lg">
-                          <div className="font-medium  text-md flex flex-row  gap-1">
+                        <div className="flex flex-col gap-1 mb-2 border border-slate-200 p-2 rounded-lg">
+                          <div className="font-medium text-md flex flex-row gap-1">
                             {participant.role}
                           </div>
                           <div className="font-medium text-md flex flex-row gap-1">
@@ -556,9 +515,7 @@ const CreateProject = () => {
                       </div>
                       <Button
                         variant="outline"
-                        onClick={() =>
-                          handleRemoveParticipant(participant.email)
-                        }
+                        onClick={() => handleRemoveParticipant(participant.email)}
                       >
                         Remove
                       </Button>
@@ -567,17 +524,11 @@ const CreateProject = () => {
                 </ul>
               </div>
             </CardContent>
-            <CardFooter className="flex items-center flex-col gap-4  justify-between">
+            <CardFooter className="flex items-center flex-col gap-4 justify-between">
               {error && (
-                <div className="text-red-700 w-full bg-red-100 rounded p-2 ">
-                  {error}
-                </div>
+                <div className="text-red-700 w-full bg-red-100 rounded p-2">{error}</div>
               )}
-              <Button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="w-full"
-              >
+              <Button onClick={handleSubmit} disabled={loading} className="w-full">
                 {loading ? "Creating Project..." : "Create Project"}
               </Button>
             </CardFooter>

@@ -2,19 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { firestore, storage, auth } from "@/lib/firebase";
-import { getUserData } from "@/lib/getUserData";
-import { toast ,ToastContainer } from "react-toastify";
-import {
-  collection,
-  query,
-  where,
-  onSnapshot,
-  doc,
-  updateDoc,
-} from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import MyProjects from "../../page";
+import { toast, ToastContainer } from "react-toastify";
 import {
   Card,
   CardContent,
@@ -22,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { onAuthStateChanged } from "firebase/auth";
+import MyProjects from "../../page";
 import { Button } from "@/components/ui/button";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -35,115 +23,108 @@ const UserProfile = () => {
   const [updatedData, setUpdatedData] = useState({});
   const [profileImgFile, setProfileImgFile] = useState(null);
   const [uploadingImg, setUploadingImg] = useState(false);
-  const [documentId, setDocumentId] = useState(null);
   const router = useRouter();
   const pathname = usePathname();
   const trimmedUserEmail = pathname.split("/").pop() + "@gmail.com";
 
+  // Check current session and fetch user role
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const userData = await getUserData();
-          setCurrentUserRole(userData.role);
-        } catch (err) {
-          setError(`Error fetching user data: ${err.message}`);
-        } finally {
-          setLoading(false);
-        }
-      } else {
+    async function fetchSession() {
+      try {
+        const res = await fetch("/api/auth/session");
+        if (!res.ok) throw new Error("Not authenticated");
+        const user = await res.json();
+        setCurrentUserRole(user.role);
+      } catch {
         setError("No authenticated user.");
         setLoading(false);
         router.push("/login");
       }
-    });
+    }
+    fetchSession();
+  }, [router]);
 
-    return () => unsubscribe();
-  }, []);
-
+  // Fetch user data for profile
   useEffect(() => {
-    const fetchData = async () => {
+    async function fetchUser() {
       try {
-        const q = query(
-          collection(firestore, "users"),
-          where("email", "==", trimmedUserEmail)
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          if (!snapshot.empty) {
-            const userDoc = snapshot.docs[0];
-            setUserData(userDoc.data());
-            setUpdatedData(userDoc.data());
-            setDocumentId(userDoc.id); // Save the document ID
-          } else {
-            setError("User not found");
-          }
-          setLoading(false);
-        });
-
-        return () => unsubscribe(); // Clean up on unmount
+        const res = await fetch(`/api/users/${trimmedUserEmail}`);
+        if (!res.ok) throw new Error("User not found");
+        const data = await res.json();
+        setUserData(data);
+        setUpdatedData(data);
       } catch (err) {
-        console.error("Error fetching user data:", err);
-        setError("Error fetching user data");
+        setError("User not found");
+      } finally {
         setLoading(false);
       }
-    };
-
-    fetchData();
+    }
+    fetchUser();
   }, [trimmedUserEmail]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setUpdatedData({ ...updatedData, [name]: value });
+    setUpdatedData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleProfileImgChange = (e) => {
-    if (e.target.files[0]) {
-      setProfileImgFile(e.target.files[0]);
-    }
+    if (e.target.files[0]) setProfileImgFile(e.target.files[0]);
   };
 
   const handleUpdateProfile = async () => {
-    if (!userData || !documentId) return;
-
+    if (!userData) return;
+    let profileImgUrl = updatedData.profileImgUrl;
     try {
-      let profileImgUrl = updatedData.profileImgUrl;
-
-      // If a new profile image is selected, upload it to Firebase Storage
+      // If uploading a new image
       if (profileImgFile) {
         setUploadingImg(true);
-        const imgRef = ref(storage, `profileImages/${userData.email}`);
-        await uploadBytes(imgRef, profileImgFile);
-        profileImgUrl = await getDownloadURL(imgRef);
-        setUpdatedData({ ...updatedData, profileImgUrl });
+        const formData = new FormData();
+        formData.append("file", profileImgFile);
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!uploadRes.ok) throw new Error("Failed to upload image");
+        const uploadData = await uploadRes.json();
+        profileImgUrl = uploadData.url;
         setUploadingImg(false);
       }
 
-      // Update user data in Firestore
-      const userRef = doc(firestore, "users", documentId); // Use document ID
-      await updateDoc(userRef, {
-        ...updatedData,
-        profileImgUrl,
+      // Update user in MongoDB via backend
+      const res = await fetch(`/api/users/${userData.email}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...updatedData,
+          profileImgUrl,
+        }),
       });
-toast.success("Profile Successfully Updated")
+      if (!res.ok) throw new Error("Failed to update profile");
+
+      setUpdatedData((prev) => ({ ...prev, profileImgUrl }));
+      toast.success("Profile Successfully Updated");
       setIsEditing(false);
+      setProfileImgFile(null);
+      // Refresh userData from API for consistency
+      const data = await res.json();
+      setUserData(data);
     } catch (error) {
-      console.error("Error updating profile:", error);
-      setError("Error updating profile");
+      setError(error.message || "Error updating profile");
+      setUploadingImg(false);
     }
   };
 
   const handleCancelUpdate = () => {
     setUpdatedData(userData); // Revert changes
     setIsEditing(false);
-    setProfileImgFile(null); // Clear selected image
+    setProfileImgFile(null);
   };
 
   if (loading) return <p>Loading...</p>;
-  if (error) return <p>{error}</p>;
+  if (error) return <p className="text-red-600">{error}</p>;
 
   return (
-    <div className=" p-4">
+    <div className="p-4">
       <Card>
         <CardHeader>
           <CardTitle>Profile</CardTitle>
@@ -156,7 +137,7 @@ toast.success("Profile Successfully Updated")
                   <img
                     src={updatedData.profileImgUrl || "/default-profile.png"}
                     alt="Profile"
-                    className="w-24 h-24 rounded-full"
+                    className="w-24 h-24 rounded-full object-cover"
                   />
                   {isEditing && (
                     <input
@@ -179,25 +160,14 @@ toast.success("Profile Successfully Updated")
                 <div className="flex flex-col gap-2 md:flex-row md:gap-4 ">
                   <div className="w-full">
                     <label className="font-bold">Email:</label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        name="email"
-                        value={updatedData.email}
-                        readOnly
-                        className="w-full cursor-not-allowed mt-1 p-2 border rounded"
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        name="email"
-                        value={updatedData.email}
-                        readOnly
-                        className="w-full cursor-not-allowed mt-1 p-2 border rounded"
-                      />
-                    )}
+                    <input
+                      type="text"
+                      name="email"
+                      value={updatedData.email}
+                      readOnly
+                      className="w-full cursor-not-allowed mt-1 p-2 border rounded"
+                    />
                   </div>
-
                   <div className="w-full">
                     <label className="font-bold">Name:</label>
                     {isEditing ? (
@@ -221,47 +191,46 @@ toast.success("Profile Successfully Updated")
                 </div>
 
                 <div className="flex flex-col gap-2 md:flex-row md:gap4">
-                <div className="w-full">
-                  <label className="font-bold">Phone Number:</label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      name="phoneNumber"
-                      value={updatedData.phoneNumber}
-                      onChange={handleInputChange}
-                      className="w-full mt-1 p-2 border rounded"
-                    />
-                  ) : (
-                    <input
-                        type="number"
-                        name="phoneNumberr"
+                  <div className="w-full">
+                    <label className="font-bold">Phone Number:</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="phoneNumber"
+                        value={updatedData.phoneNumber}
+                        onChange={handleInputChange}
+                        className="w-full mt-1 p-2 border rounded"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        name="phoneNumber"
                         value={updatedData.phoneNumber}
                         readOnly
                         className="w-full cursor-not-allowed mt-1 p-2 border rounded"
                       />
-                  )}
-                </div>
-                <div className="w-full">
-                  <label className="font-bold">Date of Birth:</label>
-                  {isEditing ? (
-                    <input
-                      type="date"
-                      name="dateOfBirth"
-                      value={updatedData.dateOfBirth}
-                      onChange={handleInputChange}
-                      className="w-full mt-1 p-2 border rounded"
-                    />
-                  ) : (
-                    <input
+                    )}
+                  </div>
+                  <div className="w-full">
+                    <label className="font-bold">Date of Birth:</label>
+                    {isEditing ? (
+                      <input
                         type="date"
-                        name="dob"
+                        name="dateOfBirth"
+                        value={updatedData.dateOfBirth}
+                        onChange={handleInputChange}
+                        className="w-full mt-1 p-2 border rounded"
+                      />
+                    ) : (
+                      <input
+                        type="date"
+                        name="dateOfBirth"
                         value={updatedData.dateOfBirth}
                         readOnly
                         className="w-full cursor-not-allowed mt-1 p-2 border rounded"
                       />
-                  )}
-                </div>
-
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-2 md:flex-row md:gap-4">
@@ -279,16 +248,15 @@ toast.success("Profile Successfully Updated")
                         <option value="other">Other</option>
                       </select>
                     ) : (
-                      <p><input
-                      type="text"
-                      name="gender"
-                      value={updatedData.gender}
-                      readOnly
-                      className="w-full cursor-not-allowed mt-1 p-2 border rounded"
-                    /></p>
+                      <input
+                        type="text"
+                        name="gender"
+                        value={updatedData.gender}
+                        readOnly
+                        className="w-full cursor-not-allowed mt-1 p-2 border rounded"
+                      />
                     )}
                   </div>
-
                   <div className="w-full">
                     <label className="font-bold">Role:</label>
                     {isEditing ? (
@@ -298,49 +266,43 @@ toast.success("Profile Successfully Updated")
                         onChange={handleInputChange}
                         className="w-full mt-1 p-2 border rounded"
                       >
-
                         <option value="member">Member</option>
                         <option value="manager">Manager</option>
-                        {currentUserRole === 'admin' &&<option value="admin">Admin</option>}
-                        
+                        {currentUserRole === 'admin' && <option value="admin">Admin</option>}
                       </select>
                     ) : (
-                    <input
-                      type="text"
-                      name="role"
-                      value={updatedData.role}
-                      readOnly
-                      className="w-full cursor-not-allowed mt-1 p-2 border rounded"
-                    />
+                      <input
+                        type="text"
+                        name="role"
+                        value={updatedData.role}
+                        readOnly
+                        className="w-full cursor-not-allowed mt-1 p-2 border rounded"
+                      />
                     )}
                   </div>
                   <div className="w-full">
-                  <label className="font-bold">Profile State:</label>
-                  {isEditing ? (
-                    <select
-                      name="profileState"
-                      value={updatedData.profileState}
-                      onChange={handleInputChange}
-                      className="w-full mt-1 p-2 border rounded"
-                    >
-                      <option value="active">Active</option>
-                      <option value="deactived">Deactived</option>
-                    </select>
-                  ) : (
-                    <input
-                    type="text"
-                    name="profilestate"
-                    value={updatedData.profileState}
-                    readOnly
-                    className="w-full cursor-not-allowed mt-1 p-2 border rounded"
-                  />
-                  )}
+                    <label className="font-bold">Profile State:</label>
+                    {isEditing ? (
+                      <select
+                        name="profileState"
+                        value={updatedData.profileState}
+                        onChange={handleInputChange}
+                        className="w-full mt-1 p-2 border rounded"
+                      >
+                        <option value="active">Active</option>
+                        <option value="deactivated">Deactivated</option>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        name="profileState"
+                        value={updatedData.profileState}
+                        readOnly
+                        className="w-full cursor-not-allowed mt-1 p-2 border rounded"
+                      />
+                    )}
+                  </div>
                 </div>
-                </div>
-
-   
-               
-                
               </div>
             </>
           ) : (
@@ -348,14 +310,13 @@ toast.success("Profile Successfully Updated")
           )}
         </CardContent>
         <CardFooter className="flex flex-col items-start space-y-4">
-          {currentUserRole !== "member" &&  (updatedData.role !== "admin" || currentUserRole!=="manager")&&
+          {currentUserRole !== "member" &&
+           (updatedData.role !== "admin" || currentUserRole !== "manager") &&
             (isEditing ? (
               <div className="flex space-x-4">
                 <Button
                   onClick={handleUpdateProfile}
-                  className={`px-4 py-2 rounded  ${
-                    uploadingImg ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                  className={`px-4 py-2 rounded ${uploadingImg ? "opacity-50 cursor-not-allowed" : ""}`}
                   disabled={uploadingImg}
                 >
                   {uploadingImg ? "Uploading..." : "Save Changes"}
@@ -371,16 +332,16 @@ toast.success("Profile Successfully Updated")
               <div>
                 <Button
                   onClick={() => setIsEditing(true)}
-                  className=""
                 >
                   Edit Profile
                 </Button>
               </div>
             ))}
-          <MyProjects customEmail={trimmedUserEmail} heading={"Projects"} />
+          {/* You can pass customEmail or just userData.email here */}
+          <MyProjects customEmail={trimmedUserEmail} heading="Projects" />
         </CardFooter>
       </Card>
-      <ToastContainer/>
+      <ToastContainer />
     </div>
   );
 };
