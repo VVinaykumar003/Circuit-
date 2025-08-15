@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import UserHoverCard from "./UserHoverCard";
+import axios from "axios";
 
 export default function Header() {
   const [userData, setUserData] = useState(null);
@@ -12,16 +13,16 @@ export default function Header() {
   useEffect(() => {
     async function fetchUserSession() {
       try {
-        // F:\Projects\Circuit\TaskZ\app\api\auth\session
-        const res = await fetch("/api/auth/session"); 
-        if (!res.ok) {
+        const res = await axios.get("/api/auth/session");
+        if (res.status !== 200) {
           setUserData(null);
           return;
         }
-        const data = await res.json();
+        const data = res.data;
         setUserData(data);
       } catch (error) {
         console.error("Error fetching user data:", error);
+        console.error("Error fetching user data and message:", error.message);
         setUserData(null);
       }
     }
@@ -68,3 +69,4 @@ export default function Header() {
     </div>
   );
 }
+

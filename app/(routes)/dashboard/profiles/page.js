@@ -8,10 +8,13 @@ import { IoMdSearch } from "react-icons/io";
 import { RiUserSettingsFill } from "react-icons/ri";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
+import axios from "axios";
 
 const trimEmail = (email) => {
   return email.split("@")[0];
 };
+
+// console.log("Email : ", trimEmail("example@example.com"));
 
 function AllProfiles() {
   const router = useRouter();
@@ -23,9 +26,10 @@ function AllProfiles() {
   useEffect(() => {
     async function fetchUsers() {
       try {
-        const res = await fetch("/api/users");
-        if (!res.ok) throw new Error("Failed to fetch users");
-        const data = await res.json();
+        const res = await axios.get("/api/user/");
+        console.log("Response:", res);
+        if (res.status !== 200) throw new Error("Failed to fetch users");
+        const data = res.data;
         setUsers(data);
         setFilteredUsers(data);
       } catch (err) {
@@ -101,7 +105,10 @@ function AllProfiles() {
                   </div>
                   <p className="text-sm">{user.role}</p>
                   <div className="flex items-center pt-2 cursor-pointer text-muted-foreground"
-                    onClick={() => router.push(`/dashboard/profiles/${trimEmail(user.email)}`)}>
+                    // onClick={() => router.push(`/dashboard/profiles/${trimEmail(user.email)}`)}
+                    onClick={() => router.push(`/dashboard/profiles?email=${encodeURIComponent(user.email)}`)}
+
+                    >
                     <RiUserSettingsFill className="mr-2 h-4 w-4 opacity-70" />
                     <span>View Profile</span>
                   </div>

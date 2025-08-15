@@ -75,7 +75,7 @@ const CreateProject = () => {
   useEffect(() => {
     async function fetchUsers() {
       try {
-        const res = await fetch("/api/users");
+        const res = await fetch("/api/user/");
         if (!res.ok) throw new Error("Failed to fetch users");
         const users = await res.json();
         setAllUsers(users);
@@ -143,81 +143,135 @@ const CreateProject = () => {
     setEmailOptions((prev) => [...prev, { value: email, label: email }]);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   setLoading(true);
+  //   setError("");
 
-    if (!validateProjectName(formData.projectName)) {
-      setError(
-        "Project name can only contain letters, numbers, dashes (-), or underscores (_). No spaces allowed."
-      );
-      setLoading(false);
-      return;
-    }
+  //   if (!validateProjectName(formData.projectName)) {
+  //     setError(
+  //       "Project name can only contain letters, numbers, dashes (-), or underscores (_). No spaces allowed."
+  //     );
+  //     setLoading(false);
+  //     return;
+  //   }
 
-    if (!validateDates(formData.startDate, formData.endDate)) {
-      setError("End date cannot be earlier than the start date.");
-      setLoading(false);
-      return;
-    }
+  //   if (!validateDates(formData.startDate, formData.endDate)) {
+  //     setError("End date cannot be earlier than the start date.");
+  //     setLoading(false);
+  //     return;
+  //   }
 
-    const projectManagerCount = participants.filter(
-      (p) => p.responsibility === "project-manager"
-    ).length;
-    if (projectManagerCount !== 1) {
-      setError("There must be exactly one project manager.");
-      setLoading(false);
-      return;
-    }
+  //   const projectManagerCount = participants.filter(
+  //     (p) => p.responsibility === "project-manager"
+  //   ).length;
+  //   if (projectManagerCount !== 1) {
+  //     setError("There must be exactly one project manager.");
+  //     setLoading(false);
+  //     return;
+  //   }
 
-    const projectMemberCount = participants.filter(
-      (p) => p.responsibility === "project-member"
-    ).length;
-    if (projectMemberCount < 1) {
-      setError("There must be at least one project member.");
-      setLoading(false);
-      return;
-    }
+  //   const projectMemberCount = participants.filter(
+  //     (p) => p.responsibility === "project-member"
+  //   ).length;
+  //   if (projectMemberCount < 1) {
+  //     setError("There must be at least one project member.");
+  //     setLoading(false);
+  //     return;
+  //   }
 
-    try {
-      // Normalize projectName for uniqueness check
-      const normalizedName = formData.projectName.toLowerCase();
+  //   try {
+  //     // Normalize projectName for uniqueness check
+  //     const normalizedName = formData.projectName.toLowerCase();
 
-      // Check uniqueness by calling your API endpoint
-      const checkRes = await fetch(`/api/projects/check?name=${normalizedName}`);
-      if (!checkRes.ok) {
-        const checkData = await checkRes.json();
-        if (checkData.exists) {
-          throw new Error("Project name already exists");
-        }
-      }
+  //     // Check uniqueness by calling your API endpoint
+  //     const checkRes = await fetch(`/api/projects/check?name=${normalizedName}`);
+  //     if (!checkRes.ok) {
+  //       const checkData = await checkRes.json();
+  //       if (checkData.exists) {
+  //         throw new Error("Project name already exists");
+  //       }
+  //     }
 
-      // Create project via API
-      const createRes = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          projectName: normalizedName,
-          participants,
-        }),
-      });
+  //     // Create project via API
+  //     const createRes = await fetch("/api/projects", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         ...formData,
+  //         projectName: normalizedName,
+  //         participants,
+  //       }),
+  //     });
 
-      if (!createRes.ok) {
-        const errorData = await createRes.json();
-        throw new Error(errorData.message || "Failed to create project");
-      }
+  //     if (!createRes.ok) {
+  //       const errorData = await createRes.json();
+  //       throw new Error(errorData.message || "Failed to create project");
+  //     }
 
-      toast.success("Project created successfully!");
-      router.push("/dashboard");
-    } catch (err) {
-      setError(err.message);
-      toast.error(`Error: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
+  //     toast.success("Project created successfully!");
+  //     router.push("/dashboard");
+  //   } catch (err) {
+  //     setError(err.message);
+  //     toast.error(`Error: ${err.message}`);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  console.log("🚀 [DEBUG] Starting project creation process...");
+  console.log("📌 Form Data Before Submit:", formData);
+  console.log("👥 Participants:", participants);
+
+  // ✅ Frontend validations
+  if (formData.projectName.length < 3) {
+    alert("Project name must be at least 3 characters long.");
+    return;
+  }
+  if (participants.length === 0) {
+    alert("Please add at least one participant.");
+    return;
+  }
+
+  const projectData = {
+    ...formData,
+    participants
   };
+
+  try {
+    const res = await fetch("/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(projectData)
+    });
+
+    console.log("📡 [DEBUG] API Response Status:", res.status);
+
+    let data;
+    try {
+      data = await res.json();
+      console.log("📦 [DEBUG] API Response Body:", data);
+    } catch (err) {
+      const rawText = await res.text();
+      console.error("❌ [DEBUG] Failed to parse JSON, raw response:", rawText);
+      return;
+    }
+
+    if (!res.ok) {
+      alert(`❌ API Error: ${data?.message || "Unknown error"}`);
+      return;
+    }
+
+    alert("✅ Project created successfully!");
+  } catch (err) {
+    console.error("🔥 [DEBUG] Network or Fetch Error:", err);
+    alert("Network error — check console for details.");
+  }
+};
+
 
   useEffect(() => {
     if (currentUserRole === "member") {
@@ -437,18 +491,9 @@ const CreateProject = () => {
                           onChange={(e) => setSelectedRole(e.target.value)}
                           className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
                         >
-                          <option value="">Select Role</option>
-                          <option value="content">Content</option>
-                          <option value="research">Research</option>
-                          <option value="design">Design</option>
-                          <option value="development">Development</option>
-                          <option value="frontend">Frontend</option>
-                          <option value="backend">Backend</option>
-                          <option value="fullstack">Full Stack</option>
-                          <option value="testing">Testing</option>
-                          <option value="debugging">Debugging</option>
-                          <option value="deployment">Deployment</option>
-                          <option value="maintain">Maintain</option>
+                            <option value="">Select Role</option>
+                          <option value="project-manager">Project Manager</option>
+                          <option value="project-member">Project Member</option>
                         </select>
                       </div>
                     </div>
@@ -463,8 +508,19 @@ const CreateProject = () => {
                           className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
                         >
                           <option value="">Select Responsibility</option>
-                          <option value="project-manager">Project Manager</option>
-                          <option value="project-member">Project Member</option>
+                            
+                          <option value="content">Content</option>
+                          <option value="research">Research</option>
+                          <option value="design">Design</option>
+                          <option value="development">Development</option>
+                          <option value="frontend">Frontend</option>
+                          <option value="backend">Backend</option>
+                          <option value="fullstack">Full Stack</option>
+                          <option value="testing">Testing</option>
+                          <option value="debugging">Debugging</option>
+                          <option value="deployment">Deployment</option>
+                          <option value="maintain">Maintain</option>
+                      
                         </select>
                       </div>
                     </div>

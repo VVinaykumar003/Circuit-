@@ -12,6 +12,8 @@ import { Loader2 } from "lucide-react"; // Import a loader icon
 import   UserHoverCard  from "@/app/_components/UserHoverCard";
 
 const ProjectCard = ({ project }) => {
+
+
   const {
     projectName,
     projectState,
@@ -20,6 +22,8 @@ const ProjectCard = ({ project }) => {
     endDate,
     participants,
   } = project;
+
+   
 
   const [loading, setLoading] = useState(false);
   const router = useRouter();

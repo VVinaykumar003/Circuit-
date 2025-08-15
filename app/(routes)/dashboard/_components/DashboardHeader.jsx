@@ -8,21 +8,22 @@ import { ModeToggle } from "@/app/_components/DarkModeBtn";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { HiMenuAlt3 } from "react-icons/hi";
+import axios from "axios";
 
 function DashboardHeader() {
   const [userData, setUserData] = useState(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const router = useRouter();
+  const router = useRouter(); 
 
   useEffect(() => {
     async function fetchSession() {
       try {
-        const res = await fetch("/api/auth/session");
-        if (!res.ok) {
+        const res = await axios.get("/api/auth/session");
+        if (res.status !== 200) {
           setUserData(null);
           return;
         }
-        const data = await res.json();
+        const data = res.data;
         setUserData(data);
       } catch (error) {
         setUserData(null);
