@@ -88,6 +88,13 @@ function SideNav() {
       path: "/dashboard/profiles",
       icon: <HiMiniUserGroup className="text-xl" />,
     },
+      // 🔹 New Manage Tasks link (admin + manager only)
+  (userRole === "admin" || userRole === "manager") && {
+    id: 7,
+    name: "Manage Tasks",
+    path: "/dashboard/manage-tasks",
+    icon: <RiFolderChartFill className="text-xl" />,
+  },
   ].filter(Boolean); // Remove falsy (non-admin links for member)
 
   if (loading) {
