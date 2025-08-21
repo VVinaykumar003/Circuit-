@@ -23,11 +23,14 @@ const MyProjects = ({ customEmail, heading }) => {
         }
         const userData = await sessionRes.json();
         const userEmail = customEmail || userData.email;
+        // console.log(userEmail)
 
         // Fetch all projects
-        const projectsRes = await fetch("/api/projects");
+        const projectsRes = await fetch("/api/projects/");
         if (!projectsRes.ok) throw new Error("Failed to fetch projects");
         const allProjects = await projectsRes.json();
+
+        // console.log("Project res : " , allProjects)
 
         // Filter projects where user is participant
         const userProjects = allProjects.filter((project) =>

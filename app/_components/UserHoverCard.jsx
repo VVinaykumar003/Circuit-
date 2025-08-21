@@ -1,87 +1,78 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useRouter } from "next/navigation";
-import { RiUserSettingsFill } from "react-icons/ri";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { useState, useEffect } from "react";
 
 export default function UserHoverCard({ email }) {
-  const [userData, setUserData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [isHovered, setIsHovered] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
 
+  // Fetch user details when hovered
   useEffect(() => {
-    async function fetchUser() {
-      try {
-        const res = await fetch(`/api/user/${email}`);
-        if (!res.ok) {
-          setUserData(null);
-          setLoading(false);
-          return;
-        }
-        const data = await res.json();
-        setUserData(data);
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-      }
-      setLoading(false);
+    if (isHovered && !user && email) {
+      setLoading(true);
+      fetch(`/api/user/${encodeURIComponent(email)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setUser(data);
+
+          console.log("User List  : ",data)
+        })
+        .catch((err) => {
+          console.error("Error fetching user:", err);
+        })
+        .finally(() => setLoading(false));
     }
-    if (email) fetchUser();
-  }, [email]);
-
-  if (loading) {
-    return (
-      <Avatar className="w-full h-full rounded-full">
-        <AvatarFallback>User</AvatarFallback>
-      </Avatar>
-    );
-  }
-
-  if (!userData) {
-    return <div>No user data found</div>;
-  }
-
-  const trimmedEmail = email.split("@")[0];
+  }, [isHovered, user, email]);
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Avatar className="w-full h-full cursor-pointer">
-          <AvatarImage src={userData.profileImgUrl} className="" />
-          <AvatarFallback>{userData.name[0]}</AvatarFallback>
-        </Avatar>
-      </PopoverTrigger>
-      <PopoverContent className="mx-2">
-        <div className="flex gap-3 ">
-          <Avatar className="w-16 h-16">
-            <AvatarImage src={userData.profileImgUrl || "/user.png"} />
-            <AvatarFallback>{userData.name[0]}</AvatarFallback>
-          </Avatar>
-          <div className="space-y-">
-            <h4 className="text-sm font-semibold">{userData.name}</h4>
-            <p className="text-sm overflow-x-hidden truncate">
-              {userData.email}
-            </p>
-            <p className="text-sm">{userData.role}</p>
-            <div className="flex items-center pt-2">
-              <RiUserSettingsFill className="mr-2 h-4 w-4 opacity-70" />
-              <span
-                className="text-xs text-muted-foreground cursor-pointer"
-                onClick={() =>
-                  router.push(`/dashboard/profiles/${trimmedEmail}`)
-                }
-              >
-                View Profile
-              </span>
-            </div>
-          </div>
+    <div
+      className="relative inline-block"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Avatar */}
+      <img
+        src={user?.profileImgUrl
+ || "/user.png"}
+        alt={user?.name || email}
+        className="w-10 h-10 rounded-full border cursor-pointer"
+      />
+
+      {/* Hover Card */}
+      {isHovered && (
+        <div className="absolute left-0 mt-2 w-56 bg-white shadow-lg rounded-lg p-4 border z-50">
+          {loading ? (
+            <p className="text-xs text-gray-500">Loading...</p>
+          ) : user ? (
+            <>
+              <div className="flex items-center space-x-3">
+                <img
+                  src={user.profileImgUrl || "/user.png"}
+                  alt={user.name || email}
+                  className="w-12 h-12 rounded-full border"
+                />
+                <div>
+                  <h4 className="text-sm font-semibold">{user.name}</h4>
+                  <p className="text-xs text-gray-500">{user.email}</p>
+                </div>
+              </div>
+
+              {user.role && (
+                <p className="mt-2 text-xs text-gray-600">
+                  <strong>Role:</strong> {user.role}
+                </p>
+              )}
+
+              {user.responsibility && (
+                <p className="mt-1 text-xs text-gray-500">{user.responsibility}</p>
+              )}
+            </>
+          ) : (
+            <p className="text-xs text-red-500">User not found</p>
+          )}
         </div>
-      </PopoverContent>
-    </Popover>
+      )}
+    </div>
   );
 }

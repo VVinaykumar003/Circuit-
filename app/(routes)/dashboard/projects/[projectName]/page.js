@@ -76,12 +76,17 @@ export default function ProjectDetails() {
         const projectRes = await fetch(`/api/projects/${projectName}`);
         if (!projectRes.ok) throw new Error("Project not found");
         const projectData = await projectRes.json();
+       
         setProject(projectData);
+
 
         const userRes = await fetch("/api/auth/session");
         if (!userRes.ok) throw new Error("Not authenticated");
         const userData = await userRes.json();
+        // console.log("UserData : ",userData);
         setUser(userData);
+
+       
 
         const isAuthorized = projectData?.participants?.some(
           (p) =>
@@ -260,7 +265,10 @@ export default function ProjectDetails() {
   } = project || {};
 
   const projectManager = participants.find((p) => p.role === "project-manager");
-  const projectMembers = participants.filter((p) => p.role === "project-member");
+  const projectMembers = participants.filter((p) => p.responsibility === "project-member");
+
+  console.log("role" , user?.role)
+
 
   return (
     <div className="max-w-5xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
@@ -323,10 +331,11 @@ export default function ProjectDetails() {
                     <div className="text-sm text-gray-500 mb-2">Project Manager</div>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10">
-                        <UserHoverCard email={projectManager.email} />
+                             <UserHoverCard  email={projectManager.email} />
                       </div>
                       <div className="flex flex-col">
                         <span className="font-medium">
+                          
                           {projectManager.username || projectManager.email}
                         </span>
                         <span className="text-xs text-gray-500">
@@ -344,10 +353,12 @@ export default function ProjectDetails() {
                 <div className="grid sm:grid-cols-2 gap-3">
                   {projectMembers.length > 0 ? (
                     projectMembers.map((m, idx) => (
+                     
                       <div
                         key={idx}
                         className="p-3 rounded-xl border bg-white dark:bg-gray-800/30 flex items-center gap-3"
                       >
+                        
                         <div className="w-10 h-10">
                           <UserHoverCard email={m.email} />
                         </div>
@@ -372,7 +383,7 @@ export default function ProjectDetails() {
             </CardContent>
 
             <CardFooter className="justify-end">
-              {user?.role !== "member" && (
+              {(user?.role === "admin" || user?.role === "manager") && (
                 <Link href={`/dashboard/projects/${projectName}/update`}>
                   <Button>Update</Button>
                 </Link>

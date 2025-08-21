@@ -9,6 +9,8 @@ import { RiUserSettingsFill } from "react-icons/ri";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+import { Filter } from "lucide-react";
+
 
 const trimEmail = (email) => {
   return email.split("@")[0];
@@ -23,11 +25,12 @@ function AllProfiles() {
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [error, setError] = useState("");
 
+ 
   useEffect(() => {
     async function fetchUsers() {
       try {
-        const res = await axios.get("/api/user/");
-        console.log("Response:", res);
+        const res = await axios.get("/api/user");
+        // console.log("Email :", res.data);
         if (res.status !== 200) throw new Error("Failed to fetch users");
         const data = res.data;
         setUsers(data);
@@ -42,14 +45,17 @@ function AllProfiles() {
   useEffect(() => {
     if (!users) return;
     const query = searchQuery.toLowerCase();
-    const filtered = users.filter(
-      (user) =>
-        (user.name && user.name.toLowerCase().includes(query)) ||
-        (user.email && user.email.toLowerCase().includes(query)) ||
-        (user.role && user.role.toLowerCase().includes(query))
-    );
+    
+     const filtered = users.filter((user) =>
+  (user.name?.toLowerCase().includes(query)) ||
+  (user.email?.toLowerCase().includes(query)) ||
+  (user.role?.toLowerCase().includes(query))
+);
+
     setFilteredUsers(filtered);
   }, [searchQuery, users]);
+
+  // console.log("User : ", users);
 
   if (error)
     return (
@@ -94,7 +100,7 @@ function AllProfiles() {
               <div className="flex gap-3 w-full">
                 <Avatar className="w-16 h-16 flex-shrink-0">
                   <AvatarImage src={user.profileImgUrl || "/user.png"} />
-                  <AvatarFallback>{user.name ? user.name[0] : "?"}</AvatarFallback>
+                  <AvatarFallback>{user.name?.[0] || user.email?.[0] || "?"}</AvatarFallback>
                 </Avatar>
                 <div className="space-y-1 overflow-hidden w-full">
                   <h4 className="text-sm font-semibold truncate">
@@ -106,9 +112,13 @@ function AllProfiles() {
                   <p className="text-sm">{user.role}</p>
                   <div className="flex items-center pt-2 cursor-pointer text-muted-foreground"
                     // onClick={() => router.push(`/dashboard/profiles/${trimEmail(user.email)}`)}
-                    onClick={() => router.push(`/dashboard/profiles?email=${encodeURIComponent(user.email)}`)}
+                
+onClick={() =>
+  router.push(`/dashboard/profiles/${user.email}`)
+ 
+}
+>
 
-                    >
                     <RiUserSettingsFill className="mr-2 h-4 w-4 opacity-70" />
                     <span>View Profile</span>
                   </div>

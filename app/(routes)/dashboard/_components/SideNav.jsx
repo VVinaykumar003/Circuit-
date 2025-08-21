@@ -106,7 +106,7 @@ function SideNav() {
       <div className="border-b">
         <div className="flex flex-row gap-2 mb-2 w-full justify-center items-center">
           <Image
-            src={"/logo.png"}
+            src={"/Logo.jpeg"}
             className="rounded-full"
             alt="logo"
             width={50}

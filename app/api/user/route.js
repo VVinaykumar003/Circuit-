@@ -2,11 +2,6 @@ import dbConnect from "@/lib/mongodb";
 import User from "@/app/models/User";
 import { NextResponse } from "next/server";
 
-
-
-
-
-
 export async function GET() {
   try {
     await dbConnect();

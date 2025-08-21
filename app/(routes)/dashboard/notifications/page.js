@@ -1,385 +1,358 @@
-// "use client";
-// import React, { useEffect, useState } from "react";
-// import {
-//   getFirestore,
-//   collection,
-//   addDoc,
-//   onSnapshot,
-//   query,
-//   orderBy,
-// } from "firebase/firestore";
-// import { getAuth, onAuthStateChanged } from "firebase/auth";
-// import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-// import { auth, storage, firestore } from "@/lib/firebase";  
-// import Link from "next/link";
-// import { Label } from "@/components/ui/label";
-// import { toast, ToastContainer } from "react-toastify";
-// import "react-toastify/dist/ReactToastify.css";
-// import { Textarea } from "@/components/ui/textarea";
-// import {
-//   Card,
-//   CardContent,
-//   CardDescription,
-//   CardFooter,
-//   CardHeader,
-//   CardTitle,
-// } from "@/components/ui/card";
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// import Image from "next/image";
-// import { Button } from "@/components/ui/button";
-// import { getUserData } from "@/lib/getUserData";
-// import UserHoverCard from "@/app/_components/UserHoverCard";
-// const NotificationPage = () => {
-//   const [currentUser, setCurrentUser] = useState(null);
-//   const [allUsers, setAllUsers] = useState([]);
-//   const [notifications, setNotifications] = useState([]);
-//   const [message, setMessage] = useState("");
-//   const [selectedFile, setSelectedFile] = useState(null);
-//   const [isPublic, setIsPublic] = useState(true);
-//   const [selectedUsers, setSelectedUsers] = useState([]);
-//   const [sendersName, setSendersName] = useState("");
-//   const [loading, setLoading] = useState(false);
+"use client";
 
-//   // Get the current user
-//   useEffect(() => {
-//     const unsubscribe = onAuthStateChanged(auth, (user) => {
-//       if (user) {
-//         setCurrentUser(user);
-//         const userDataForName = getUserData();
-//         setSendersName(userDataForName.name);
-//       } else {
-//         setCurrentUser(null);
-//       }
-//     });
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { Label } from "@/components/ui/label";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import UserHoverCard from "@/app/_components/UserHoverCard";
 
-//     return () => unsubscribe();
-//   }, [auth]);
+// Utility: check if file is image
+const isImage = (url) => /\.(jpg|jpeg|png|gif|webp|avif)$/i.test(url);
 
-//   // Fetch all users
-// useEffect(() => {
-//   const fetchUsers = async () => {
-//     const res = await fetch("/api/users");
-//     const data = await res.json();
-//     setAllUsers(data.users);
-//   };
-//   fetchUsers();
-// }, []);
+export default function NotificationPage() {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [allUsers, setAllUsers] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [message, setMessage] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isPublic, setIsPublic] = useState(true);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-//   // Fetch and sort notifications
-//   useEffect(() => {
-//     if (!currentUser) return;
-// useEffect(() => {
-//   if (!currentUser) return;
+  // Fetch current logged-in user
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        if (data) setCurrentUser(data);
+      } catch (err) {
+        console.error("Error fetching session:", err);
+      }
+    }
+    fetchUser();
+  }, []);
 
-//   const fetchNotifications = async () => {
-//     const res = await fetch(`/api/notifications?email=${currentUser.email}`);
-//     const data = await res.json();
-//     setNotifications(data.notifications);
-//   };
+  // Fetch all users
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const res = await fetch("/api/user/");
+        const data = await res.json();
+        if (Array.isArray(data)) setAllUsers(data);
+      } catch (err) {
+        console.error("Error fetching users:", err);
+      }
+    }
+    fetchUsers();
+  }, []);
 
-//   fetchNotifications();
-// }, [currentUser]);
+  // Fetch notifications for current user
+  useEffect(() => {
+    if (!currentUser?.email) return;
+    async function fetchNotifications() {
+      try {
+        const res = await fetch(`/api/notifications?email=${currentUser.email}`);
+        const data = await res.json();
+        if (Array.isArray(data?.notifications)) {
+          setNotifications(data.notifications);
+        } else {
+          setNotifications([]);
+        }
+      } catch (err) {
+        console.error("Error fetching notifications:", err);
+      }
+    }
+    fetchNotifications();
+  }, [currentUser]);
 
-    
-//     const q = query(notificationsRef, orderBy("timestamp", "desc")); // Order by timestamp
+  // File upload handler
+  const handleFileUpload = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
 
-//     const unsubscribe = onSnapshot(q, (snapshot) => {
-//       const userNotifications = snapshot.docs
-//         .map((doc) => doc.data())
-//         .filter((notification) =>
-//           notification.toEmail.some(
-//             (emailObj) => emailObj.email === currentUser.email
-//           )
-//         );
-//       setNotifications(userNotifications);
-//     });
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const { url } = await res.json();
+      return url || "No Files";
+    } catch (err) {
+      console.error("File upload failed:", err);
+      return "No Files";
+    }
+  };
 
-//     return () => unsubscribe();
-//   }, [firestore, currentUser]);
+  // Send notification handler
+  const handleSendNotification = async (e) => {
+    e.preventDefault();
+    if (!currentUser?.email) {
+      toast.error("You must be logged in to send notifications.");
+      return;
+    }
 
-//   // Handle file upload
-//   const handleFileUpload = async (file) => {
-//     const storageRef = ref(storage, `uploads/${file.name}`);
-//     const uploadTask = await uploadBytes(storageRef, file);
-//     const fileURL = await getDownloadURL(uploadTask.ref);
-//     return fileURL;
-//   };
+    setLoading(true);
 
-//   // Handle sending notification
-//   const handleSendNotification = async (e) => {
-//     e.preventDefault();
-//     setLoading(true);
+    let fileURL = "No Files";
+    if (selectedFile) {
+      fileURL = await handleFileUpload(selectedFile);
+    }
 
-//     let fileURL = "No Files";
-//     if (selectedFile) {
-//       // fileURL = await handleFileUpload(selectedFile);
-//       const formData = new FormData();
-// formData.append("file", selectedFile);
+    const toEmail = isPublic
+      ? allUsers.map((user) => ({ email: user.email, state: "unread" }))
+      : selectedUsers.map((user) => ({ email: user.email, state: "unread" }));
 
-// const res = await fetch("/api/upload", {
-//   method: "POST",
-//   body: formData,
-// });
+    const today = new Date().toLocaleDateString("en-CA", {
+      timeZone: "Asia/Kolkata",
+    });
 
-// const { url } = await res.json();
+    const notificationData = {
+      fromEmail: currentUser.email,
+      msg: { msgcontent: message, source: fileURL },
+      dataTo: isPublic ? "public" : "private",
+      toEmail,
+      date: today,
+    };
 
-//     }
+    try {
+      const res = await fetch("/api/notifications/create/w", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(notificationData),
+      });
 
-//     const toEmail = isPublic
-//       ? allUsers.map((user) => ({ email: user.email, state: "unread" }))
-//       : selectedUsers.map((user) => ({ email: user.email, state: "unread" }));
+      if (!res.ok) throw new Error("Failed to send notification");
 
-//     // Get the current date and time in the India region
-//     const today = new Date().toLocaleDateString("en-CA", {
-//       timeZone: "Asia/Kolkata",
-//     });
+      toast.success("Notification sent successfully!");
+      setMessage("");
+      setSelectedFile(null);
+      setSelectedUsers([]);
+      setIsPublic(true);
+    } catch (err) {
+      console.error("Error sending notification:", err);
+      toast.error("Error sending notification.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-//     const timestamp = new Date(); // Current timestamp
-//     const currentUserData = allUsers.find(
-//       (user) => user.email === currentUser.email
-//     );
-//     const fromName = currentUserData ? currentUserData.name : currentUser.email;
+  return (
+    <div className="md:p-6 max-w-6xl mx-auto">
+      <h1 className="text-2xl font-bold md:mb-6 mb-4 text-gray-900 dark:text-gray-100">
+        Notification Page
+      </h1>
 
-//     // Notification data
-//     const notificationData = {
-//       timestamp,
-//       date: today,
-//       fromEmail: currentUser.email,
-//       msg: {
-//         msgcontent: message,
-//         source: fileURL,
-//       },
-//       dataTo: isPublic ? "public" : "private",
-//       toEmail: toEmail,
-//     };
+      <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-2xl p-0">
+        <Tabs defaultValue="view" className="w-full">
+          <TabsList className="grid grid-cols-2 mb-6">
+            <TabsTrigger value="view" className="font-semibold text-lg">
+              View Notifications
+            </TabsTrigger>
+            <TabsTrigger value="send" className="font-semibold text-lg">
+              Send Notification
+            </TabsTrigger>
+          </TabsList>
 
-//     // Create title and body for API call
-//     const title = `New Notification from ${fromName}`;
-//     const body =
-//       message.length > 40 ? `${message.substring(0, 40)}...` : message;
+          {/* Send Notification Tab */}
+          <TabsContent value="send">
+            <Card className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md px-6 py-6 max-w-2xl mx-auto">
+              <form onSubmit={handleSendNotification} className="space-y-6">
+                {/* Message */}
+                <div>
+                  <Label
+                    htmlFor="message"
+                    className="block mb-2 text-base font-semibold text-gray-800 dark:text-gray-100"
+                  >
+                    Message
+                  </Label>
+                  <Textarea
+                    id="message"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Enter your message"
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 p-3 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-400"
+                    required
+                  />
+                </div>
 
-//     // Call API for each email in toEmail array
-//     const apiCalls = toEmail.map(async (recipient) => {
-//       try {
-//         const response = await fetch("/api/sendNotifications", {
-//           method: "POST",
-//           headers: {
-//             "Content-Type": "application/json",
-//           },
-//           body: JSON.stringify({
-//             email: recipient.email,
-//             notification: {
-//               title,
-//               body,
-//             },
-//           }),
-//         });
-    
-//         if (!response.ok) {
-//           throw new Error(`Failed to send notification to ${recipient.email}`);
-//         }
-//       } catch (error) {
-//         console.error(`Error sending notification to ${recipient.email}: `, error);
-//       }
-//     });
-    
-//     try {
-//       // Wait for all API calls to finish, but continue even if some fail
-//       await Promise.allSettled(apiCalls);
-      
-//       // Add the notification to Firestore regardless of API call outcomes
-//       const notificationRef = collection(firestore, "notifications");
-//       await addDoc(notificationRef, notificationData);
-      
-//       toast.success("Notification sent successfully!");
-      
-//       // Reset form fields
-//       setMessage("");
-//       setSelectedFile(null);
-//       setSelectedUsers([]);
-//       setIsPublic(true);
-//     } catch (error) {
-//       console.error("Error adding notification to Firestore: ", error);
-//       toast.error("Error sending notification.");
-//     } finally {
-//       setLoading(false);
-//     }
-    
-//   };
+                {/* File upload */}
+                <div className="p-4 bg-white dark:bg-gray-900 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+                  <Label
+                    htmlFor="file"
+                    className="block mb-2 font-semibold text-gray-700 dark:text-gray-200"
+                  >
+                    Add File <span className="text-gray-400 font-normal">(Optional)</span>
+                  </Label>
+                  <input
+                    id="file"
+                    type="file"
+                    onChange={(e) =>
+                      setSelectedFile(e.target.files?.[0] || null)
+                    }
+                    className="block w-full max-w-xs text-sm border border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition"
+                  />
+                </div>
 
-//   const isImage = (url) => {
-//     return /\.(jpg|jpeg|png|gif|webp|avif)$/i.test(url);
-//   };
+                {/* Public/Private Radios */}
+                <div className="flex items-center gap-8 ml-1">
+                  <Label className="flex items-center cursor-pointer gap-3 text-gray-800 dark:text-gray-100 font-medium">
+                    <input
+                      type="radio"
+                      name="dataTo"
+                      checked={isPublic}
+                      onChange={() => setIsPublic(true)}
+                      className="form-radio h-5 w-5 accent-blue-600 transition-all border-gray-300 focus:ring-2 focus:ring-blue-300"
+                    />
+                    Public
+                  </Label>
+                  <Label className="flex items-center cursor-pointer gap-3 text-gray-800 dark:text-gray-100 font-medium">
+                    <input
+                      type="radio"
+                      name="dataTo"
+                      checked={!isPublic}
+                      onChange={() => setIsPublic(false)}
+                      className="form-radio h-5 w-5 accent-blue-600 transition-all border-gray-300 focus:ring-2 focus:ring-blue-300"
+                    />
+                    Private
+                  </Label>
+                </div>
 
-//   return (
-//     <div className="md:p-6 ">
-//       <h1 className="text-xl font-bold md:mb-4 mb-2">Notification Page</h1>
-//       <Card className="md:p-4 p-2">
-//         <Tabs defaultValue="view" className="w-full">
-//           <TabsList className="grid w-full grid-cols-2 mb-4">
-//             <TabsTrigger value="view">View Notifications</TabsTrigger>
-//             <TabsTrigger value="send">Send Notification</TabsTrigger>
-//           </TabsList>
+                {/* Select Users if Private */}
+                {!isPublic && (
+                  <div>
+                    <Label className="block mb-3 text-base font-semibold text-gray-700 dark:text-gray-200">
+                      Select Users:
+                    </Label>
+                    <div className="space-y-2 max-h-52 overflow-y-auto pr-2">
+                      {allUsers.map((user) => (
+                        <label
+                          key={user._id || user.email}
+                          className="flex items-center gap-3 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:shadow-md transition-shadow duration-150"
+                        >
+                          <input
+                            type="checkbox"
+                            value={user.email}
+                            checked={selectedUsers.some((u) => u.email === user.email)}
+                            onChange={(e) => {
+                              setSelectedUsers((prev) =>
+                                e.target.checked
+                                  ? [...prev, user]
+                                  : prev.filter((u) => u.email !== user.email)
+                              );
+                            }}
+                            className="h-4 w-4 accent-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-400"
+                          />
+                          {/* <img
+                            src={user.profileImgUrl}
+                            alt={user.email}
+                            className="h-8 w-8 rounded-full object-cover border border-gray-300 dark:border-gray-600 bg-gray-100"
+                          /> */}
+                          <span className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-xs">
+                            {user.email}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-//           <TabsContent value="send">
-//             <Card className="lg:p-6 p-3 shadow-md border border-gray-200">
-//               <form onSubmit={handleSendNotification} className="space-y-4">
-//                 <div>
-//                   <Label htmlFor="message">Message</Label>
-//                   <Textarea
-//                     id="message"
-//                     value={message}
-//                     onChange={(e) => setMessage(e.target.value)}
-//                     placeholder="Enter your message"
-//                     className="w-full mt-1"
-//                     required
-//                   />
-//                 </div>
+                {/* Submit Button */}
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full font-semibold py-3 px-6 rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow transition"
+                >
+                  {loading ? "Sending..." : "Send"}
+                </Button>
+              </form>
+            </Card>
+          </TabsContent>
 
-//                 <div>
-//                   <Label htmlFor="file" className="block">
-//                     Add File <span className="text-gray-400">(Optional)</span>
-//                   </Label>
-//                   <input
-//                     id="file"
-//                     type="file"
-//                     onChange={(e) => setSelectedFile(e.target.files[0])}
-//                     className="mt-1"
-//                   />
-//                 </div>
+          {/* View Notifications Tab */}
+          <TabsContent value="view">
+            <Card className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md px-6 py-6 max-w-4xl mx-auto">
+              <CardHeader className="mb-4">
+                <CardTitle>Notifications</CardTitle>
+              </CardHeader>
 
-//                 <div className="flex items-center space-x-4">
-//                   <Label className="flex items-center">
-//                     <input
-//                       type="radio"
-//                       name="dataTo"
-//                       checked={isPublic}
-//                       onChange={() => setIsPublic(true)}
-//                       className="mr-2"
-//                     />
-//                     Public
-//                   </Label>
-//                   <Label className="flex items-center">
-//                     <input
-//                       type="radio"
-//                       name="dataTo"
-//                       checked={!isPublic}
-//                       onChange={() => setIsPublic(false)}
-//                       className="mr-2"
-//                     />
-//                     Private
-//                   </Label>
-//                 </div>
+              {notifications.length === 0 ? (
+                <p className="text-gray-500 dark:text-gray-400">No notifications found.</p>
+              ) : (
+                <ul className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {notifications.map((notification, index) => (
+                    <li key={notification._id || index}>
+                      <Card className="p-4 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow">
+                        <CardHeader className="p-0 mb-2">
+                          <div className="flex items-center gap-3">
+                            <UserHoverCard email={notification.fromEmail} />
+                            <div className="flex flex-col flex-grow min-w-0">
+                              <p className="truncate font-semibold text-gray-900 dark:text-gray-100">
+                                {notification.fromEmail}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {notification.date}
+                              </p>
+                              <span
+                                className={`inline-block text-xs rounded px-2 py-0.5 mt-1 w-max ${
+                                  notification.dataTo === "public"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : "bg-blue-100 text-blue-700"
+                                }`}
+                              >
+                                {notification.dataTo}
+                              </span>
+                            </div>
+                          </div>
+                        </CardHeader>
 
-//                 {!isPublic && (
-//                   <div>
-//                     <Label className="block mb-2">Select Users:</Label>
-//                     {allUsers.map((user, index) => (
-//                       <div key={index} className="flex items-center mb-2">
-//                         <input
-//                           type="checkbox"
-//                           value={user.email}
-//                           onChange={(e) => {
-//                             setSelectedUsers((prevSelectedUsers) => {
-//                               if (e.target.checked) {
-//                                 return [...prevSelectedUsers, user];
-//                               } else {
-//                                 return prevSelectedUsers.filter(
-//                                   (u) => u.email !== user.email
-//                                 );
-//                               }
-//                             });
-//                           }}
-//                           className="mr-2"
-//                         />
-//                         {user.email}
-//                       </div>
-//                     ))}
-//                   </div>
-//                 )}
+                        <CardContent className="p-0 mt-2 text-gray-800 dark:text-gray-100">
+                          <p>
+                            <strong>Message:</strong> {notification.msg?.msgcontent}
+                          </p>
+                          {notification.msg?.source &&
+                            notification.msg.source !== "No Files" &&
+                            (isImage(notification.msg.source) ? (
+                              <div className="flex justify-center mt-3">
+                                <img
+                                  src={notification.msg.source}
+                                  alt="Notification file"
+                                  className="rounded-lg object-contain max-w-full max-h-48 border border-gray-300"
+                                />
+                              </div>
+                            ) : (
+                              <Link
+                                href={notification.msg.source}
+                                target="_blank"
+                                className="inline-block mt-3 text-blue-600 font-medium hover:underline"
+                              >
+                                View File
+                              </Link>
+                            ))}
+                        </CardContent>
+                      </Card>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </Card>
 
-//                 <Button
-//                   type="submit"
-//                   disabled={loading}
-//                   className={`px-4 py-2 rounded-md transition ${
-//                     loading ? "bg-gray-400" : ""
-//                   }`}
-//                 >
-//                   {loading ? "Sending..." : "Send"}
-//                 </Button>
-//               </form>
-//             </Card>
-//           </TabsContent>
-
-//           <TabsContent value="view">
-//       <Card className="lg:p-6 p-3 shadow-md border border-gray-200">
-//         <h2 className="text-2xl font-semibold mb-4">Notifications</h2>
-//         <ul className="grid grid-cols-1 md:grid-cols-1 w-full lg:grid-cols-2 gap-2 lg:gap-5">
-//           {notifications.map((notification, index) => (
-//             <li key={index} className="">
-//               <Card className="p-4 bg-slate-100 dark:bg-slate-800 border border-slate-400 w-full h-full">
-//                 <div className="flex flex-row items-center gap-2 w-full">
-//                   <div className="w-14 h-14 flex-shrink-0">
-//                     <UserHoverCard email={notification.fromEmail} />
-//                   </div>
-
-//                   <div className="flex flex-col justify-center gap-0 w-0 flex-grow">
-//                     <p className="overflow-hidden text-ellipsis whitespace-nowrap">
-//                       {notification.fromEmail}
-//                     </p>
-//                     <p className="text-xs">{notification.date}</p>
-//                     <p className="text-xs">{notification.dataTo}</p>
-//                   </div>
-//                 </div>
-
-//                 <div className="border-b pt-2 border-slate-400 mb-2 h-1"></div>
-//                 <p className="">
-//                   Message: {notification.msg.msgcontent}
-//                 </p>
-//                 {notification.msg.source !== "No Files" &&
-//                   (notification.msg.source.includes(".jpg") ||
-//                   notification.msg.source.includes(".jpeg") ||
-//                   notification.msg.source.includes(".png") ? (
-//                     <div className="flex justify-center items-center mt-2">
-//                       {notification ? (
-//                         <img
-//                           src={notification.msg.source}
-//                           alt="Notification file"
-//                           width={200}
-//                           height={150}
-//                           className="rounded-lg object-cover"
-//                         />
-//                       ) : (
-//                         <Image
-//                           src={"/loadingImg.jpg"}
-//                           alt="Notification file"
-//                           width={200}
-//                           height={150}
-//                           className="rounded-lg object-cover"
-//                         />
-//                       )}
-//                     </div>
-//                   ) : (
-//                     <Link
-//                       href={notification.msg.source}
-//                       target="_blank"
-//                       rel="noopener noreferrer"
-//                       className="text-blue-600 hover:underline mt-2"
-//                     >
-//                       View File
-//                     </Link>
-//                   ))}
-//               </Card>
-//             </li>
-//           ))}
-//         </ul>
-//       </Card>
-//     </TabsContent>
-//         </Tabs>
-//       </Card>
-//       <ToastContainer />
-//     </div>
-//   );
-// };
-
-// export default NotificationPage;
+      <ToastContainer />
+    </div>
+  );
+}

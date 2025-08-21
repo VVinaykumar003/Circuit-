@@ -24,6 +24,7 @@ function DashboardHeader() {
           return;
         }
         const data = res.data;
+       
         setUserData(data);
       } catch (error) {
         setUserData(null);
