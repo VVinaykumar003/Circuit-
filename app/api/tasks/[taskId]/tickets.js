@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import Task from "@/models/Task";
+import Task from "@/models/Tasks";
 import { authenticate } from "@/lib/middleware/authenticate";
 import { checkRole } from "@/lib/middleware/checkRole";
 

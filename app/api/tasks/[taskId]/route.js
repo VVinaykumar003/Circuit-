@@ -1,7 +1,7 @@
 // app/api/tasks/[taskId]/route.js
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import Task from "@/models/Task";
+import Task from "@/models/Tasks";
 import { authenticate } from "@/lib/middleware/authenticate"; // ✅ JWT helper
 import { checkRole } from "@/middleware/checkRole"; // ✅ role helper
 

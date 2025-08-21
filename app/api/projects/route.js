@@ -1,80 +1,71 @@
+// app/api/auth/session/route.js
 import { NextResponse } from "next/server";
-// import dbConnect from "@/app/dbconfig/mongodb";
-import Project from "@/app/models/project";
 import dbConnect from "@/lib/mongodb";
+import User from "@/app/models/User";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
+// Connect to DB at module level for efficiency
 await dbConnect();
 
-// ✅ GET /api/projects — Fetch all projects
-export async function GET() {
-  try {
-    const projects = await Project.find().sort({ createdAt: -1 });
-    return NextResponse.json(projects, { status: 200 });
-  } catch (error) {
-    return NextResponse.json(
-      { message: "Failed to fetch projects", error: error.message },
-      { status: 500 }
-    );
-  }
-}
-
-// ✅ POST /api/projects — Create a new project
-// export async function POST(request) {
-//   try {
-//     const projectData = await request.json();
-//     console.log("Project data received:", projectData);
-
-//     // ✅ Automatically lowercase project name for uniqueness
-//     projectData.projectName = projectData.projectName.toLowerCase();
-
-//     // ✅ Check if project name already exists
-//     const existing = await Project.findOne({
-//       projectName: projectData.projectName,
-//     });
-//     if (existing) {
-//       return NextResponse.json(
-//         { message: "Project name already exists" },
-//         { status: 400 }
-//       );
-//     }
-
-//     // ✅ Create project
-//     const newProject = new Project(projectData);
-//     await newProject.save();
-
-//     return NextResponse.json(newProject, { status: 201 });
-//   } catch (error) {
-//     return NextResponse.json(
-//       { message: "Failed to create project", error: error.message },
-//       { status: 500 }
-//     );
-//   }
-// }
-
-// import connectDB from "@/lib/mongodb";
-// import Project from "@/models/Project";
-
+// ✅ POST: Handle login and return JWT
 export async function POST(req) {
   try {
-    await dbConnect();
+    const { email, password } = await req.json();
 
-    const body = await req.json();
-    console.log("📥 Incoming Project Data:", body);
+    // Admin special (optional)
+    if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+      const adminUser = {
+        id: "admin",
+        name: "Admin User",
+        email: process.env.ADMIN_EMAIL,
+        role: "admin"
+      };
+      const token = jwt.sign(adminUser, process.env.JWT_SECRET, { expiresIn: "1h" });
+      return NextResponse.json({ success: true, token, role: "admin", user: adminUser });
+    }
 
-    // Create project
-    const project = await Project.create(body);
-    console.log("✅ Project Saved:", project);
+    // Normal user login
+    const user = await User.findOne({ email });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return NextResponse.json({ success: false, message: "Invalid credentials" }, { status: 401 });
+    }
 
-    return new Response(JSON.stringify(project), {
-      status: 201,
-      headers: { "Content-Type": "application/json" }
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    // Return token and user data
+    return NextResponse.json({
+      success: true,
+      token,
+      role: user.role,
+      user: { id: user._id, name: user.name, email: user.email }
     });
   } catch (err) {
-    console.error("🔥 Server Error in POST /api/projects:", err);
-    return new Response(
-      JSON.stringify({ message: err.message || "Internal Server Error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    console.error("Login error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
+// ✅ GET: Validate user session (check token from header)
+// For example, your frontend calls this after login to confirm session is valid
+export async function GET(req) {
+  try {
+    // Extract token from Authorization header (Bearer ...)
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ message: "No token provided" }, { status: 401 });
+    }
+    const token = authHeader.split(" ")[1];
+    // Verify token using your secret
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Return the decoded payload (e.g., user info)
+    return NextResponse.json({ user: decoded, role: decoded.role });
+  } catch (err) {
+    return NextResponse.json({ message: "Invalid or expired token" }, { status: 401 });
+  }
+}

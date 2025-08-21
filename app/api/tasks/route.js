@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import Task from "@/models/Task";
+import Task from "@/app/models/Tasks";
 import { authenticate } from "@/lib/middleware/authenticate"; // ✅ verifies JWT
-import { checkRole } from "@/middleware/checkRole"; // ✅ role helper
+import { checkRole } from "@/lib/middleware/checkRole"; // ✅ role helper
 
 // 🔹 GET → fetch all tasks
 export async function GET() {

@@ -53,17 +53,26 @@ export default function CreateUser() {
   // Handle input and select changes, with phone number formatting
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    if (name === "phoneNumber") {
-      const digitsOnly = value.replace(/\D/g, "");
-      let formatted = digitsOnly;
-      if (!formatted.startsWith("91")) {
-        formatted = `91${formatted}`;
-      }
-      setFormData((prev) => ({ ...prev, phoneNumber: formatted }));
-    } else {
+    // if (name === "phoneNumber") {
+    //   const digitsOnly = value.replace(/\D/g, "");
+    //   let formatted = digitsOnly;
+      // if (!formatted.startsWith("91")) {
+      //   formatted = `91${formatted}`;
+      // }
+
+      // setFormData((prev) => ({ ...prev, phoneNumber: formatted }));
+
+        if (name === "phoneNumber") {
+  const digitsOnly = value.replace(/\D/g, "");
+  setFormData((prev) => ({ ...prev, phoneNumber: digitsOnly }));
+}
+     else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
+
+
+
 
   // Profile image upload handler calling your custom backend API (/api/upload)
  const handleFileChange = async (e) => {
@@ -125,11 +134,18 @@ export default function CreateUser() {
       setLoadingBtn(false);
       return;
     }
-    if (formData.phoneNumber.length !== 12) {
-      setError("Only 10 digit mobile numbers are allowed");
-      setLoadingBtn(false);
-      return;
-    }
+    console.log('length : ' , formData.phoneNumber.length)
+    // if (formData.phoneNumber.length !== 12) {
+    //   setError("Only 10 digit mobile numbers are allowed");
+    //   setLoadingBtn(false);
+    //   return;
+    // }
+    if (formData.phoneNumber.length !== 10) {
+  setError("Only 10 digit mobile numbers are allowed");
+  setLoadingBtn(false);
+  return;
+}
+
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
       setLoadingBtn(false);

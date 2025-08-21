@@ -1,4 +1,5 @@
 // app/api/projectUpdates/updates/route.js
+
 import dbConnect from "@/lib/mongodb";
 import ProjectUpdate from "@/app/models/ProjectUpdate";
 
@@ -6,32 +7,33 @@ export async function GET(req) {
   try {
     await dbConnect();
 
-    // Extract projectName from query params
     const { searchParams } = new URL(req.url);
     const projectName = searchParams.get("projectName");
 
     if (!projectName) {
       return new Response(
-        JSON.stringify({ message: "projectName query param is required" }),
-        { status: 400 }
+        JSON.stringify({ updates: [] }),
+        { status: 200 }
       );
     }
 
-    // Find updates for the project
-    const projectUpdates = await ProjectUpdate.findOne({ projectName });
+    const project = await ProjectUpdate.findOne({ projectName }).lean();
 
-    if (!projectUpdates) {
+    if (!project || !project.updates) {
       return new Response(
-        JSON.stringify({ message: "No updates found for this project" }),
-        { status: 404 }
+        JSON.stringify({ updates: [] }),
+        { status: 200 } // return empty array, not 404
       );
     }
 
-    return new Response(JSON.stringify(projectUpdates), { status: 200 });
-  } catch (error) {
-    console.error("Error fetching project updates:", error);
     return new Response(
-      JSON.stringify({ message: "Internal server error" }),
+      JSON.stringify({ updates: project.updates }),
+      { status: 200 }
+    );
+  } catch (err) {
+    console.error("Error fetching updates:", err);
+    return new Response(
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500 }
     );
   }
