@@ -84,6 +84,7 @@ export default function ProjectDetails() {
           throw new Error("Project not found");
         }
         const projectData = await projectRes.json();
+       
         setProject(projectData);
 
         const userRes = await fetch("/api/auth/session", {
@@ -94,7 +95,10 @@ export default function ProjectDetails() {
           throw new Error("Not authenticated");
         }
         const userData = await userRes.json();
+        // console.log("UserData : ",userData);
         setUser(userData);
+
+       
 
         const isAuthorized = projectData?.participants?.some(
           (p) =>

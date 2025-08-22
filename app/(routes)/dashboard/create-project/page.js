@@ -246,7 +246,9 @@ const handleSubmit = async (e) => {
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
                   >
+                    <option value="">Select State</option>
                     <option value="ongoing">Ongoing</option>
+                    <option value="deployment">Deployment</option>
                     <option value="completed">Completed</option>
                   </select>
                 </div>
@@ -291,6 +293,11 @@ const handleSubmit = async (e) => {
                     <option value="aiml">AI/ML</option>
                     <option value="designing">Designing</option>
                     <option value="content-writing">Content Writing</option>
+                    <option value="content-creation">Content creation</option>
+                    <option value="software-doveloper">Software Doveloper</option>
+                    <option value="software-developer">Software Doveloper</option>
+                    <option value="testing">Testing</option>
+
                   </select>
                 </div>
               </div>

@@ -43,6 +43,8 @@ const ProjectCard = ({ project }) => {
     (participant) => participant.responsibility === "project-member"
   );
 
+  // console.log("Project Manager:", projectManager);
+
   return (
     <Card className="w-full max-w-md mx-auto shadow-lg rounded-lg ">
       <CardHeader className="bg-gray-100 p-4 rounded-t-lg dark:bg-slate-950">
@@ -77,7 +79,7 @@ const ProjectCard = ({ project }) => {
 
               <div>
                 <div className="font-medium truncate w-56 md:w-40 lg:w-48">
-                  {projectManager.username}
+                  {projectManager.name}
                 </div>
                 <div className="text-sm text-gray-500 truncate overflow-x-hidden w-44 md:w-36 lg:w-40">
                   {projectManager.email}
@@ -94,12 +96,12 @@ const ProjectCard = ({ project }) => {
           <div className="mt-4">
             <strong>Project Members:</strong>
             <div className="grid mt-2 w-full grid-cols-6  justify-items-center lg:grid-cols-6  md:grid-cols-4 gap-1">
-              {projectMembers.map((member, index) => (
+              {projectMembers.map((member, index) => ( 
                 <div key={index} className="w-full">
                   <UserHoverCard email={member.email} className="w-full" />
                 </div>
               ))}
-            </div>
+            </div> 
           </div>
         )}
       </CardContent>

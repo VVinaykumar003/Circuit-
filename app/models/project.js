@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 
+// Participant schema
 const participantSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -16,6 +17,27 @@ const participantSchema = new mongoose.Schema({
   },
 });
 
+// Work update schema
+const workUpdateSchema = new mongoose.Schema({
+  msg: { type: String, required: true },
+  source: { type: String }, // optional
+});
+
+// Update schema
+const updateSchema = new mongoose.Schema({
+  email: { type: String, required: true },
+  date: { type: String, required: true },
+  workUpdate: { type: workUpdateSchema, required: true },
+});
+
+// Announcement schema
+const announcementSchema = new mongoose.Schema({
+  msg: { type: String, required: true },
+  date: { type: String, required: true },
+  postedBy: { type: String, required: true },
+});
+
+// Main project schema
 const projectSchema = new mongoose.Schema(
   {
     projectName: {

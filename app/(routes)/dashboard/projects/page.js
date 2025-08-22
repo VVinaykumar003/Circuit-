@@ -37,6 +37,7 @@ const ProjectList = () => {
         if (!projectsRes.ok) throw new Error("Failed to fetch projects");
 
         const projectList = await projectsRes.json();
+        // console.log("projectList : ",projectList)
 
         // Sort projects: ongoing first, then completed, within each by start date (newest first)
         const statePriority = { ongoing: 1, completed: 2 };
