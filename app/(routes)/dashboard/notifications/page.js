@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import UserHoverCard from "@/app/_components/UserHoverCard";
 
-// Utility: check if file is image
+// ✅ Utility: check if file is image
 const isImage = (url) => /\.(jpg|jpeg|png|gif|webp|avif)$/i.test(url);
 
 export default function NotificationPage() {
@@ -29,22 +29,26 @@ export default function NotificationPage() {
   const [isPublic, setIsPublic] = useState(true);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Fetch current logged-in user
+  const canSendNotifications =
+    currentUser && ["admin", "manager"].includes(currentUser.role);
+
+  // ✅ Fetch current user
   useEffect(() => {
     async function fetchUser() {
       try {
         const res = await fetch("/api/auth/session");
         const data = await res.json();
-        if (data) setCurrentUser(data);
+        if (data?.email) setCurrentUser(data);
       } catch (err) {
-        console.error("Error fetching session:", err);
+        toast.error("Failed to load user session");
       }
     }
     fetchUser();
   }, []);
 
-  // Fetch all users
+  // ✅ Fetch all users
   useEffect(() => {
     async function fetchUsers() {
       try {
@@ -58,44 +62,44 @@ export default function NotificationPage() {
     fetchUsers();
   }, []);
 
-  // Fetch notifications for current user
+  // ✅ Fetch notifications
   useEffect(() => {
     if (!currentUser?.email) return;
+
     async function fetchNotifications() {
       try {
-        const res = await fetch(`/api/notifications?email=${currentUser.email}`);
-        const data = await res.json();
-        if (Array.isArray(data?.notifications)) {
-          setNotifications(data.notifications);
-        } else {
-          setNotifications([]);
+        const res = await fetch(
+          `/api/notifications?email=${encodeURIComponent(currentUser.email)}`
+        );
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || "Failed to fetch notifications");
         }
+        const data = await res.json();
+        if (Array.isArray(data)) setNotifications(data);
       } catch (err) {
-        console.error("Error fetching notifications:", err);
+        setError(err);
+        toast.error("Failed to load notifications");
       }
     }
+
     fetchNotifications();
   }, [currentUser]);
 
-  // File upload handler
+  // ✅ File upload handler
   const handleFileUpload = async (file) => {
     const formData = new FormData();
     formData.append("file", file);
-
     try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
       const { url } = await res.json();
       return url || "No Files";
-    } catch (err) {
-      console.error("File upload failed:", err);
+    } catch {
       return "No Files";
     }
   };
 
-  // Send notification handler
+  // ✅ Send notification handler
   const handleSendNotification = async (e) => {
     e.preventDefault();
     if (!currentUser?.email) {
@@ -104,241 +108,203 @@ export default function NotificationPage() {
     }
 
     setLoading(true);
-
-    let fileURL = "No Files";
-    if (selectedFile) {
-      fileURL = await handleFileUpload(selectedFile);
-    }
-
-    const toEmail = isPublic
-      ? allUsers.map((user) => ({ email: user.email, state: "unread" }))
-      : selectedUsers.map((user) => ({ email: user.email, state: "unread" }));
-
-    const today = new Date().toLocaleDateString("en-CA", {
-      timeZone: "Asia/Kolkata",
-    });
-
-    const notificationData = {
-      fromEmail: currentUser.email,
-      msg: { msgcontent: message, source: fileURL },
-      dataTo: isPublic ? "public" : "private",
-      toEmail,
-      date: today,
-    };
-
     try {
-      const res = await fetch("/api/notifications/create/w", {
+      let fileURL = "No Files";
+      if (selectedFile) fileURL = await handleFileUpload(selectedFile);
+
+      const eligibleUsers = allUsers.filter((u) =>
+        ["admin", "manager"].includes(u.role)
+      );
+
+      const toEmail = isPublic
+        ? eligibleUsers.map((u) => ({ email: u.email, state: "unread" }))
+        : selectedUsers
+            .filter((u) => ["admin", "manager"].includes(u.role))
+            .map((u) => ({ email: u.email, state: "unread" }));
+
+      if (toEmail.length === 0) {
+        toast.error("No eligible recipients found.");
+        return;
+      }
+
+      const notificationData = {
+        fromEmail: currentUser.email,
+        msg: { msgcontent: message, source: fileURL },
+        dataTo: isPublic ? "public" : "private",
+        toEmail,
+        date: new Date().toISOString(),
+      };
+
+      const res = await fetch("/api/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(notificationData),
       });
 
       if (!res.ok) throw new Error("Failed to send notification");
-
-      toast.success("Notification sent successfully!");
+      toast.success("Notification sent successfully");
       setMessage("");
       setSelectedFile(null);
       setSelectedUsers([]);
-      setIsPublic(true);
     } catch (err) {
-      console.error("Error sending notification:", err);
-      toast.error("Error sending notification.");
+      toast.error(err.message || "Error sending notification");
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ Error UI
+  if (error) {
+    return (
+      <div className="p-6 text-center bg-red-50 text-red-600 rounded-lg shadow">
+        <h2 className="font-bold text-lg">Error</h2>
+        <p>{error.message}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="md:p-6 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold md:mb-6 mb-4 text-gray-900 dark:text-gray-100">
-        Notification Page
+      <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-gray-100">
+        Notifications
       </h1>
 
-      <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-2xl p-0">
+      <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-2xl">
         <Tabs defaultValue="view" className="w-full">
-          <TabsList className="grid grid-cols-2 mb-6">
-            <TabsTrigger value="view" className="font-semibold text-lg">
-              View Notifications
-            </TabsTrigger>
-            <TabsTrigger value="send" className="font-semibold text-lg">
-              Send Notification
-            </TabsTrigger>
+          <TabsList className="grid grid-cols-2">
+            <TabsTrigger value="view">View</TabsTrigger>
+            {canSendNotifications && <TabsTrigger value="send">Send</TabsTrigger>}
           </TabsList>
 
-          {/* Send Notification Tab */}
-          <TabsContent value="send">
-            <Card className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md px-6 py-6 max-w-2xl mx-auto">
-              <form onSubmit={handleSendNotification} className="space-y-6">
-                {/* Message */}
-                <div>
-                  <Label
-                    htmlFor="message"
-                    className="block mb-2 text-base font-semibold text-gray-800 dark:text-gray-100"
-                  >
-                    Message
-                  </Label>
-                  <Textarea
-                    id="message"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Enter your message"
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 p-3 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-400"
-                    required
-                  />
-                </div>
-
-                {/* File upload */}
-                <div className="p-4 bg-white dark:bg-gray-900 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-                  <Label
-                    htmlFor="file"
-                    className="block mb-2 font-semibold text-gray-700 dark:text-gray-200"
-                  >
-                    Add File <span className="text-gray-400 font-normal">(Optional)</span>
-                  </Label>
-                  <input
-                    id="file"
-                    type="file"
-                    onChange={(e) =>
-                      setSelectedFile(e.target.files?.[0] || null)
-                    }
-                    className="block w-full max-w-xs text-sm border border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition"
-                  />
-                </div>
-
-                {/* Public/Private Radios */}
-                <div className="flex items-center gap-8 ml-1">
-                  <Label className="flex items-center cursor-pointer gap-3 text-gray-800 dark:text-gray-100 font-medium">
-                    <input
-                      type="radio"
-                      name="dataTo"
-                      checked={isPublic}
-                      onChange={() => setIsPublic(true)}
-                      className="form-radio h-5 w-5 accent-blue-600 transition-all border-gray-300 focus:ring-2 focus:ring-blue-300"
-                    />
-                    Public
-                  </Label>
-                  <Label className="flex items-center cursor-pointer gap-3 text-gray-800 dark:text-gray-100 font-medium">
-                    <input
-                      type="radio"
-                      name="dataTo"
-                      checked={!isPublic}
-                      onChange={() => setIsPublic(false)}
-                      className="form-radio h-5 w-5 accent-blue-600 transition-all border-gray-300 focus:ring-2 focus:ring-blue-300"
-                    />
-                    Private
-                  </Label>
-                </div>
-
-                {/* Select Users if Private */}
-                {!isPublic && (
+          {/* ✅ Send Notification */}
+          {canSendNotifications && (
+            <TabsContent value="send">
+              <Card className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl mt-4">
+                <form onSubmit={handleSendNotification} className="space-y-6">
                   <div>
-                    <Label className="block mb-3 text-base font-semibold text-gray-700 dark:text-gray-200">
-                      Select Users:
-                    </Label>
-                    <div className="space-y-2 max-h-52 overflow-y-auto pr-2">
-                      {allUsers.map((user) => (
-                        <label
-                          key={user._id || user.email}
-                          className="flex items-center gap-3 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:shadow-md transition-shadow duration-150"
-                        >
-                          <input
-                            type="checkbox"
-                            value={user.email}
-                            checked={selectedUsers.some((u) => u.email === user.email)}
-                            onChange={(e) => {
-                              setSelectedUsers((prev) =>
-                                e.target.checked
-                                  ? [...prev, user]
-                                  : prev.filter((u) => u.email !== user.email)
-                              );
-                            }}
-                            className="h-4 w-4 accent-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-400"
-                          />
-                          {/* <img
-                            src={user.profileImgUrl}
-                            alt={user.email}
-                            className="h-8 w-8 rounded-full object-cover border border-gray-300 dark:border-gray-600 bg-gray-100"
-                          /> */}
-                          <span className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-xs">
-                            {user.email}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
+                    <Label htmlFor="message">Message</Label>
+                    <Textarea
+                      id="message"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Enter your message"
+                      required
+                      className="mt-2"
+                    />
                   </div>
-                )}
 
-                {/* Submit Button */}
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full font-semibold py-3 px-6 rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow transition"
-                >
-                  {loading ? "Sending..." : "Send"}
-                </Button>
-              </form>
-            </Card>
-          </TabsContent>
+                  <div>
+                    <Label htmlFor="file">Attach File</Label>
+                    <input
+                      id="file"
+                      type="file"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                      className="mt-2 block w-full text-sm border rounded-md p-2"
+                    />
+                  </div>
 
-          {/* View Notifications Tab */}
+                  <div className="flex gap-6">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        checked={isPublic}
+                        onChange={() => setIsPublic(true)}
+                      />
+                      Public
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        checked={!isPublic}
+                        onChange={() => setIsPublic(false)}
+                      />
+                      Private
+                    </label>
+                  </div>
+
+                  {!isPublic && (
+                    <div>
+                      <Label>Select Users</Label>
+                      <div className="mt-2 max-h-40 overflow-y-auto space-y-2">
+                        {allUsers.map((user) => (
+                          <label
+                            key={user.email}
+                            className="flex items-center gap-2 p-2 border rounded-md"
+                          >
+                            <input
+                              type="checkbox"
+                              value={user.email}
+                              checked={selectedUsers.some(
+                                (u) => u.email === user.email
+                              )}
+                              onChange={(e) => {
+                                setSelectedUsers((prev) =>
+                                  e.target.checked
+                                    ? [...prev, user]
+                                    : prev.filter((u) => u.email !== user.email)
+                                );
+                              }}
+                            />
+                            {user.email}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <Button type="submit" disabled={loading} className="w-full">
+                    {loading ? "Sending..." : "Send Notification"}
+                  </Button>
+                </form>
+              </Card>
+            </TabsContent>
+          )}
+
+          {/* ✅ View Notifications */}
           <TabsContent value="view">
-            <Card className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md px-6 py-6 max-w-4xl mx-auto">
-              <CardHeader className="mb-4">
-                <CardTitle>Notifications</CardTitle>
-              </CardHeader>
-
+            <Card className="p-6 mt-4">
               {notifications.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400">No notifications found.</p>
+                <p className="text-gray-500 text-center">
+                  📭 No notifications yet.
+                </p>
               ) : (
-                <ul className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {notifications.map((notification, index) => (
-                    <li key={notification._id || index}>
-                      <Card className="p-4 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow">
-                        <CardHeader className="p-0 mb-2">
-                          <div className="flex items-center gap-3">
-                            <UserHoverCard email={notification.fromEmail} />
-                            <div className="flex flex-col flex-grow min-w-0">
-                              <p className="truncate font-semibold text-gray-900 dark:text-gray-100">
-                                {notification.fromEmail}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {notification.date}
-                              </p>
-                              <span
-                                className={`inline-block text-xs rounded px-2 py-0.5 mt-1 w-max ${
-                                  notification.dataTo === "public"
-                                    ? "bg-emerald-100 text-emerald-800"
-                                    : "bg-blue-100 text-blue-700"
-                                }`}
-                              >
-                                {notification.dataTo}
-                              </span>
-                            </div>
+                <ul className="grid gap-4">
+                  {notifications.map((n) => (
+                    <li key={n._id}>
+                      <Card className="p-4 hover:shadow-md transition">
+                        <CardHeader className="flex flex-row gap-3 p-0 mb-2">
+                          <UserHoverCard email={n.fromEmail} />
+                          <div className="flex-grow">
+                            <p className="font-semibold">{n.fromEmail}</p>
+                            <p className="text-xs text-gray-500">{n.date}</p>
+                            <span
+                              className={`text-xs px-2 py-1 rounded ${
+                                n.dataTo === "public"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-blue-100 text-blue-700"
+                              }`}
+                            >
+                              {n.dataTo}
+                            </span>
                           </div>
                         </CardHeader>
-
-                        <CardContent className="p-0 mt-2 text-gray-800 dark:text-gray-100">
-                          <p>
-                            <strong>Message:</strong> {notification.msg?.msgcontent}
-                          </p>
-                          {notification.msg?.source &&
-                            notification.msg.source !== "No Files" &&
-                            (isImage(notification.msg.source) ? (
-                              <div className="flex justify-center mt-3">
-                                <img
-                                  src={notification.msg.source}
-                                  alt="Notification file"
-                                  className="rounded-lg object-contain max-w-full max-h-48 border border-gray-300"
-                                />
-                              </div>
+                        <CardContent>
+                          <p>{n.msg?.msgcontent}</p>
+                          {n.msg?.source &&
+                            n.msg.source !== "No Files" &&
+                            (isImage(n.msg.source) ? (
+                              <img
+                                src={n.msg.source}
+                                alt="file"
+                                className="mt-3 rounded-md max-h-48"
+                              />
                             ) : (
                               <Link
-                                href={notification.msg.source}
+                                href={n.msg.source}
                                 target="_blank"
-                                className="inline-block mt-3 text-blue-600 font-medium hover:underline"
+                                className="text-blue-600 hover:underline mt-3 block"
                               >
-                                View File
+                                📎 View File
                               </Link>
                             ))}
                         </CardContent>

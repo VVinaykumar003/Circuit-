@@ -36,6 +36,7 @@ export default function CreateUser() {
         const res = await fetch("/api/auth/session");
         if (res.ok) {
           const user = await res.json();
+
           setCurrentUserRole(user.role);
         } else {
           router.push("/login");
@@ -205,7 +206,7 @@ export default function CreateUser() {
               />
             </div>
           ) : (
-            <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+            <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700"><img src='/user.png'     className="object-cover w-20 h-20"/></div>
           )}
 
           <div className="flex flex-col justify-center">
@@ -262,6 +263,7 @@ export default function CreateUser() {
               onChange={handleInputChange}
               className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
               required
+              autoComplete="new-password"
             />
           </div>
           <div>
@@ -280,6 +282,7 @@ export default function CreateUser() {
               onChange={handleInputChange}
               className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
               required
+              autoComplete="new-password"
             />
           </div>
           <div>
