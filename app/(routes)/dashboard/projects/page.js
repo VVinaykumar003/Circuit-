@@ -22,52 +22,55 @@ const ProjectList = () => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  
+
   useEffect(() => {
-    async function checkAuthAndLoadProjects() {
-      try {
-        // Check if user is authenticated
-        const sessionRes = await fetch("/api/auth/session");
-        if (!sessionRes.ok) {
-          router.push("/login");
-          return;
-        }
-
-        // Fetch projects
-        const projectsRes = await fetch("/api/projects/");
-        if (!projectsRes.ok) throw new Error("Failed to fetch projects");
-
-        const projectList = await projectsRes.json();
-        // console.log("projectList : ",projectList)
-
-        // Sort projects: ongoing first, then completed, within each by start date (newest first)
-        const statePriority = { ongoing: 1, completed: 2 };
-        const sortedProjects = projectList.sort((a, b) => {
-          const stateComparison =
-            statePriority[a.projectState] - statePriority[b.projectState];
-          if (stateComparison !== 0) return stateComparison;
-          return new Date(b.startDate) - new Date(a.startDate);
-        });
-
-       
-
-        // Format startDate before sending to ProjectCard
-        const formattedProjects = sortedProjects.map((project) => ({
-          ...project,
-          startDate: formatDate(project.startDate),
-          endDate:formatDate(project.endDate)
-        }));
-
-        setProjects(formattedProjects);
-      } catch (error) {
-        console.error("Error fetching projects:", error);
-        toast.error("Error loading projects.");
-      } finally {
-        setLoading(false);
-      }
+const checkAuthAndLoadProjects = async () => {
+  setLoading(true); // Set loading to true when starting
+  try {
+    // Get token from localStorage
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      console.error('No token found');
+      router.push('/login');
+      return;
     }
+
+    const res = await fetch('/api/projects', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to fetch projects');
+    }
+
+    const data = await res.json();
+    setProjects(data);
+    
+  } catch (err) {
+    console.error('Error fetching projects:', err);
+    if (err.message === 'Invalid token') {
+      router.push('/login');
+    }
+    setError(err.message);
+  } finally {
+    setLoading(false); // Set loading to false when done, regardless of success or failure
+  }
+};
 
     checkAuthAndLoadProjects();
   }, [router]);
+
+
+    function handleProjectDeleted(deletedProjectName) {
+    setProjects(prev => prev.filter(p => p.projectName !== deletedProjectName));
+  }
+
 
   if (loading) {
     return <div className="flex justify-center">Loading...</div>;
@@ -79,7 +82,7 @@ const ProjectList = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {projects.length > 0 ? (
           projects.map((project) => (
-            <ProjectCard key={project._id || project.id} project={project} />
+            <ProjectCard key={project._id || project.id} project={project} onDeleted={handleProjectDeleted}  />
           ))
         ) : (
           <div>No projects available</div>

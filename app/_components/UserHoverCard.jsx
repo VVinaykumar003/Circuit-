@@ -14,9 +14,9 @@ export default function UserHoverCard({ email }) {
       fetch(`/api/user/${encodeURIComponent(email)}`)
         .then((res) => res.json())
         .then((data) => {
-          setUser(data);
+          setUser(data.user);
 
-          console.log("User List  : ",data)
+          console.log("User List  : ",data.user)
         })
         .catch((err) => {
           console.error("Error fetching user:", err);

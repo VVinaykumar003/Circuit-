@@ -1,53 +1,84 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import Task from "@/models/Tasks";
+import Task from "@/app/models/Tasks";
 import { authenticate } from "@/lib/middleware/authenticate";
 import { checkRole } from "@/lib/middleware/checkRole";
+import { verifyAuth } from "@/lib/auth";
 
 // 🔹 POST → Create ticket (only admin/manager)
+// /app/api/tasks/[taskId]/tickets/route.js
+
+
 export async function POST(req, { params }) {
-  await dbConnect();
   const { taskId } = params;
 
   try {
-    const user = await authenticate(req);
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const roleCheck = checkRole(user, ["admin", "manager"]);
-    if (!roleCheck.ok) {
-      return NextResponse.json({ error: roleCheck.message }, { status: roleCheck.status });
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const token = authHeader.split(" ")[1];
+    const user = await verifyAuth(token);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { issueTitle, description, assignedTo, priority, startDate, dueDate, tag } = await req.json();
-
-    const task = await Task.findById(taskId);
-    if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
-
-    const ticket = {
+    const body = await req.json();
+    const {
       issueTitle,
       description,
-      assignedTo,
+      assignedTo = null,
+      priority = "medium",
+      startDate = null,
+      dueDate = null,
+      tag = "other"
+    } = body;
+
+    if (!issueTitle || typeof issueTitle !== "string") {
+      return NextResponse.json({ error: "Issue title is required" }, { status: 400 });
+    }
+
+    await dbConnect();
+
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    const newTicket = {
+      issueTitle: issueTitle.trim(),
+      description: description?.trim() || "",
+      assignedTo: assignedTo ? assignedTo : null,
       priority,
-      startDate,
-      dueDate,
+      startDate: startDate ? new Date(startDate) : null,
+      dueDate: dueDate ? new Date(dueDate) : null,
       tag,
-      createdBy: user._id,
+      comments: [],
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
 
-    task.tickets.push(ticket);
+    task.tickets.push(newTicket);
     await task.save();
 
-    return NextResponse.json({ message: "Ticket created successfully", ticket }, { status: 201 });
-  } catch (err) {
-    console.error("POST /tasks/[taskId]/tickets error:", err);
-    return NextResponse.json({ error: "Failed to create ticket" }, { status: 500 });
+    const addedTicket = task.tickets[task.tickets.length - 1].toObject();
+    console.log("addedTicket: " , addedTicket )
+    return NextResponse.json({ ticket: addedTicket }, { status: 201 });
+  } catch (error) {
+    console.error("Error creating ticket:", error);
+    return NextResponse.json(
+      { error: "Failed to create ticket. Server error." },
+      { status: 500 }
+    );
   }
 }
+
 
 // 🔹 GET → Fetch tickets (role based)
 export async function GET(req, { params }) {
   await dbConnect();
   const { taskId } = params;
+  console.log(taskId);
 
   try {
     const user = await authenticate(req);
@@ -55,7 +86,7 @@ export async function GET(req, { params }) {
 
     const task = await Task.findById(taskId)
       .populate("tickets.assignedTo")
-      .populate("tickets.createdBy");
+      // .populate("tickets.createdBy");
 
     if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 

@@ -15,6 +15,12 @@ const MyProjects = ({ customEmail, heading }) => {
   useEffect(() => {
     async function fetchData() {
       try {
+         const token = localStorage.getItem('token'); // or however you store your token
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
         // Check user session
         const sessionRes = await fetch("/api/auth/session");
         if (!sessionRes.ok) {
@@ -22,11 +28,19 @@ const MyProjects = ({ customEmail, heading }) => {
           return;
         }
         const userData = await sessionRes.json();
-        const userEmail = customEmail || userData.email;
+        const userEmail = customEmail || userData.email; 
+
+
+
         // console.log(userEmail)
 
         // Fetch all projects
-        const projectsRes = await fetch("/api/projects/");
+        const projectsRes = await fetch("/api/projects/",{
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
         if (!projectsRes.ok) throw new Error("Failed to fetch projects");
         const allProjects = await projectsRes.json();
 

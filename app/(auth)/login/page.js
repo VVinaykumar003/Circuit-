@@ -15,29 +15,48 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
- const handleLogin = async (e) => {
+const handleLogin = async (e) => {
   e.preventDefault();
   setLoading(true);
   setError("");
 
   try {
-    const res = await axios.post("/api/auth/session", { email, password });
+    console.log('Attempting login for:', email); // Debug log
 
-    const role = res.data.role;
+    const res = await axios.post("/api/auth/session", { 
+      email, 
+      password 
+    });
 
-    if (role === "admin") {
-     router.push("/dashboard");
+    console.log('Login response:', res.data); // Debug log
 
-    } else {
-      router.push("/dashboard");
+    if (!res.data.token) {
+      throw new Error('No token received from server');
     }
+
+    // Store token in localStorage
+    localStorage.setItem('token', res.data.token);
+    
+    // Set auth cookie with proper attributes
+    document.cookie = `token=${res.data.token}; path=/; max-age=86400; secure; samesite=strict`;
+
+    // Store user role
+    localStorage.setItem('userRole', res.data.role);
+
+    // Redirect based on role
+    router.push("/dashboard");
+
   } catch (err) {
-    setError("Invalid credentials or server error.");
+    console.error('Login error:', err);
+    setError(
+      err.response?.data?.error || 
+      err.message || 
+      "Invalid credentials or server error."
+    );
   } finally {
     setLoading(false);
   }
 };
-
 
   useEffect(() => {
     if (email && password) {
@@ -45,7 +64,7 @@ export default function LoginForm() {
     }
   }, [email, password]);
 
-  return (
+  return ( 
     <div className="min-h-screen flex items-center justify-center">
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
         <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">

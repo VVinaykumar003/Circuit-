@@ -1,9 +1,9 @@
 // app/api/tasks/[taskId]/route.js
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import Task from "@/models/Tasks";
+import Task from "@/app/models/Tasks";
 import { authenticate } from "@/lib/middleware/authenticate"; // ✅ JWT helper
-import { checkRole } from "@/middleware/checkRole"; // ✅ role helper
+import { checkRole } from "@/lib/middleware/checkRole"; // ✅ role helper
 
 // 🔹 GET → fetch single task
 export async function GET(req, { params }) {
@@ -14,8 +14,9 @@ export async function GET(req, { params }) {
     const task = await Task.findById(taskId)
       .populate("subtasks")
       .populate("tickets.assignedTo")
-      .populate("tickets.createdBy");
-
+      .populate("tickets.comments.author")
+      .populate("createdBy");
+      
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
@@ -23,9 +24,10 @@ export async function GET(req, { params }) {
     return NextResponse.json(task, { status: 200 });
   } catch (err) {
     console.error("GET /tasks/[taskId] error:", err);
-    return NextResponse.json({ error: "Failed to fetch task" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch task", details: err.message }, { status: 500 });
   }
 }
+
 
 // 🔹 PUT → update task (Admin + Manager, Members only if assigned)
 export async function PUT(req, { params }) {

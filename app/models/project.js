@@ -1,10 +1,19 @@
 import mongoose from "mongoose";
 
+
 // Participant schema
 const participantSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User", // reference User model
+    required: true,
+  },
+  email: {
+    type: String,
+    required: true,
+  },
+  username: {
+    type: String,
     required: true,
   },
   roleInProject: { 
@@ -16,6 +25,7 @@ const participantSchema = new mongoose.Schema({
     required: true, 
   },
 });
+
 
 // Work update schema
 const workUpdateSchema = new mongoose.Schema({

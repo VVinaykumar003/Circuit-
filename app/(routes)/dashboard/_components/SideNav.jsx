@@ -41,14 +41,14 @@ function SideNav() {
     fetchSession();
   }, [router]);
 
-  const handleSignOut = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" }); // Implement this API route to clear session
-      router.push("/login");
-    } catch (error) {
-      console.error("Sign out error:", error);
-    }
-  };
+ const handleSignOut = async () => {
+  try {
+    await fetch("/api/auth/logout", { method: "GET" }); // ✅ Use GET
+    router.push("/login");
+  } catch (error) {
+    console.error("Sign out error:", error);
+  }
+};
 
   // Define the menu list
   const menuList = [

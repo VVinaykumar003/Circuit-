@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -55,9 +56,16 @@ const CreateProject = () => {
   const router = useRouter();
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
     async function fetchUserRole() {
       try {
-        const res = await fetch("/api/auth/session");
+        const res = await fetch("/api/auth/session", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (res.ok) {
           const user = await res.json();
           setCurrentUserRole(user.role);
@@ -73,9 +81,16 @@ const CreateProject = () => {
   }, [router]);
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
     async function fetchUsers() {
       try {
-        const res = await fetch("/api/user/");
+        const res = await fetch("/api/user/", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) throw new Error("Failed to fetch users");
         const users = await res.json();
         setAllUsers(users);
@@ -85,7 +100,7 @@ const CreateProject = () => {
       }
     }
     fetchUsers();
-  }, []);
+  }, [router]);
 
   const handleSelect = (email) => {
     const user = allUsers.find((u) => u.email === email);
@@ -96,106 +111,109 @@ const CreateProject = () => {
   };
 
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    if (type === "checkbox") {
-      setFormData((prev) => ({
-        ...prev,
-        roles: checked
-          ? [...(prev.roles || []), value]
-          : (prev.roles || []).filter((role) => role !== value),
-      }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
-
-  const validateProjectName = (name) => /^[a-zA-Z0-9-_]+$/.test(name);
-
-  const validateDates = (start, end) => new Date(start) <= new Date(end);
 
   const handleAddParticipant = () => {
-    if (!selectedUser || !selectedRole || !selectedResponsibility) {
-      toast.error("Please select all fields for the participant.");
-      return;
-    }
-    if (participants.find((p) => p.email === selectedUser)) {
-      toast.error("Participant already added.");
-      return;
-    }
-    setParticipants((prev) => [
-      ...prev,
-      {
-        email: selectedUser,
-        role: selectedRole,
-        responsibility: selectedResponsibility,
-        profileImage: selectedUserData?.profileImgUrl || "/user.png",
-        userRole: selectedUserData?.role || "No Role",
-        username: selectedUserData?.name || "Unknown User",
-      },
-    ]);
-    setSelectedUser(null);
-    setSelectedRole("");
-    setSelectedResponsibility("");
-  };
+  if (!selectedUser || !selectedRole || !selectedResponsibility) {
+    toast.error("Please select all fields for the participant.");
+    return;
+  }
+  if (participants.find((p) => p.email === selectedUser)) {
+    toast.error("Participant already added.");
+    return;
+  }
+  setParticipants((prev) => [
+    ...prev,
+    {
+      userId: selectedUserData._id, // must be Mongo ObjectId
+      email: selectedUser,
+      username: selectedUserData.name || "Unknown User",
+      roleInProject: selectedRole, // match schema name
+      responsibility: selectedResponsibility,
+      profileImage: selectedUserData.profileImgUrl || "/user.png",
+      userRole: selectedUserData.role || "No Role",
+    },
+  ]);
+  setSelectedUser(null);
+  setSelectedUserData(null);
+  setSelectedRole("");
+  setSelectedResponsibility("");
+};
+
 
   const handleRemoveParticipant = (email) => {
     setParticipants((prev) => prev.filter((p) => p.email !== email));
     setEmailOptions((prev) => [...prev, { value: email, label: email }]);
   };
-  
-const handleSubmit = async (e) => {
-  e.preventDefault();
 
-  console.log("🚀 [DEBUG] Starting project creation process...");
-  console.log("📌 Form Data Before Submit:", formData);
-  console.log("👥 Participants:", participants);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  // ✅ Frontend validations
-  if (formData.projectName.length < 3) {
-    alert("Project name must be at least 3 characters long.");
-    return;
-  }
-  if (participants.length === 0) {
-    alert("Please add at least one participant.");
-    return;
-  }
+    if (formData.projectName.length < 3) {
+      alert("Project name must be at least 3 characters long.");
+      return;
+    }
+    if (participants.length === 0) {
+      alert("Please add at least one participant.");
+      return;
+    }
 
-  const projectData = {
-    ...formData,
-    participants
-  };
+    const managerParticipant = participants.find((p) => p.roleInProject === "project-manager");
+    if (!managerParticipant) {
+      alert("Please add a participant with role 'Project Manager'.");
+      return;
+    }
 
-  try {
-    const res = await fetch("/api/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(projectData)
-    });
+    const projectData = {
+      ...formData,
+      managerId: managerParticipant.userId,
+      participants: participants.map(({ userId, roleInProject, responsibility, email, username }) => ({
+        userId,
+        roleInProject,
+        responsibility,
+        email,
+        username,
+      })),
+    };
+    //  console.log(projectData)
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error("Authentication required.");
+      router.push("/login");
+      return;
+    }
 
-    console.log("📡 [DEBUG] API Response Status:", res.status);
-
-    let data;
+    setLoading(true);
     try {
-      data = await res.json();
-      console.log("📦 [DEBUG] API Response Body:", data);
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(projectData),
+      });
+
+      // console.log(res)
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert(`❌ API Error: ${data?.message || "Unknown error"}`);
+        setLoading(false);
+        return;
+      }
+
+      alert("✅ Project created successfully!");
+      router.push("/dashboard/projects");
     } catch (err) {
-      const rawText = await res.text();
-      console.error("❌ [DEBUG] Failed to parse JSON, raw response:", rawText);
-      return;
+      alert("Network error — check console for details.");
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-
-    if (!res.ok) {
-      alert(`❌ API Error: ${data?.message || "Unknown error"}`);
-      return;
-    }
-
-    alert("✅ Project created successfully!");
-  } catch (err) {
-    console.error("🔥 [DEBUG] Network or Fetch Error:", err);
-    alert("Network error — check console for details.");
-  }
-};
-
+  };
 
   useEffect(() => {
     if (currentUserRole === "member") {
@@ -206,12 +224,7 @@ const handleSubmit = async (e) => {
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
       <h2 className="text-2xl font-bold mb-6 text-center">Create New Project</h2>
-      <Tabs
-        defaultValue="info"
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="w-full"
-      >
+      <Tabs defaultValue="info" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="info">Project Info</TabsTrigger>
           <TabsTrigger value="create">Create Project</TabsTrigger>
@@ -221,8 +234,7 @@ const handleSubmit = async (e) => {
             <CardHeader>
               <CardTitle>Project Information</CardTitle>
               <CardDescription>
-                Provide project details and proceed to the next tab to create the
-                project.
+                Provide project details and proceed to the next tab to create the project.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -293,11 +305,9 @@ const handleSubmit = async (e) => {
                     <option value="aiml">AI/ML</option>
                     <option value="designing">Designing</option>
                     <option value="content-writing">Content Writing</option>
-                    <option value="content-creation">Content creation</option>
-                    <option value="software-doveloper">Software Doveloper</option>
-                    <option value="software-developer">Software Doveloper</option>
+                    <option value="content-creation">Content Creation</option>
+                    <option value="software-developer">Software Developer</option>
                     <option value="testing">Testing</option>
-
                   </select>
                 </div>
               </div>
@@ -312,8 +322,7 @@ const handleSubmit = async (e) => {
             <CardHeader>
               <CardTitle>Create Project</CardTitle>
               <CardDescription>
-                Review the project information and add participants before
-                finalizing.
+                Review the project information and add participants before finalizing.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -326,144 +335,155 @@ const handleSubmit = async (e) => {
                 New Participants
               </Button>
 
-              <form
+              {/* <form
                 id="participantsForm"
                 className="hidden"
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleAddParticipant();
                 }}
+              > */}
+               
+
+<form
+  id="participantsForm"
+  className="hidden"
+  onSubmit={(e) => {
+    e.preventDefault();
+    handleAddParticipant();
+  }}
+>
+  <div className="space-y-4 w-full">
+    <div className="flex flex-col w-full lg:flex-row lg:items-center lg:justify-between lg:gap-4 gap-2">
+      <div className="flex w-full gap-4">
+        <div className="space-y-1 w-full pt-2 flex flex-col">
+          <Label htmlFor="selectUser">Select User</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={false}
+                className="justify-between w-full"
               >
-                <div className="space-y-4 w-full">
-                  <div className="flex flex-col w-full lg:flex-row lg:items-center lg:justify-between lg:gap-4 gap-2">
-                    <div className="flex w-full gap-4">
-                      <div className="space-y-1 w-full pt-2 flex flex-col">
-                        <Label htmlFor="selectUser">Select User</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              aria-expanded={false}
-                              className="justify-between w-full"
-                            >
-                              {selectedUser ? selectedUser : "Select user..."}
-                              <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="p-0">
-                            <Command>
-                              <CommandInput
-                                placeholder="Search user..."
-                                className="h-9"
-                                onChange={(e) => {
-                                  const val = e.target.value.toLowerCase();
-                                  setEmailOptions(
-                                    allUsers
-                                      .filter((user) => user.email.toLowerCase().includes(val))
-                                      .map((user) => ({ value: user.email, label: user.email }))
-                                  );
-                                }}
-                              />
-                              <CommandList>
-                                <CommandEmpty>No user found.</CommandEmpty>
-                                <CommandGroup>
-                                  {emailOptions.map((option) => (
-                                    <CommandItem
-                                      key={option.value}
-                                      value={option.value}
-                                      onSelect={handleSelect}
-                                    >
-                                      <div className="flex items-center space-x-4">
-                                        <Image
-                                          src={
-                                            allUsers.find(
-                                              (user) => user.email === option.value
-                                            )?.profileImgUrl || "/user.png"
-                                          }
-                                          alt="User Avatar"
-                                          width={40}
-                                          height={40}
-                                          className="w-10 h-10 rounded-full object-cover"
-                                        />
-                                        <div className="flex-1">
-                                          <div className="font-semibold">
-                                            {allUsers.find(
-                                              (user) => user.email === option.value
-                                            )?.name || "Unknown User"}
-                                          </div>
-                                          <div className="text-sm text-gray-600">
-                                            {allUsers.find(
-                                              (user) => user.email === option.value
-                                            )?.email || option.value}
-                                            <br />
-                                            {allUsers.find(
-                                              (user) => user.email === option.value
-                                            )?.role || "No Role"}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
+                {selectedUser ? selectedUser : "Select user..."}
+                <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0">
+              <Command>
+                <CommandInput
+                  placeholder="Search user..."
+                  className="h-9"
+                  onChange={(e) => {
+                    const val = e.target.value.toLowerCase();
+                    setEmailOptions(
+                      allUsers
+                        .filter((user) => user.email.toLowerCase().includes(val))
+                        .map((user) => ({ value: user.email, label: user.email }))
+                    );
+                  }}
+                />
+                <CommandList>
+                  <CommandEmpty>No user found.</CommandEmpty>
+                  <CommandGroup>
+                    {emailOptions.map((option) => (
+                      <CommandItem
+                        key={option.value}
+                        value={option.value}
+                        onSelect={handleSelect}
+                      >
+                        <div className="flex items-center space-x-4">
+                          <Image
+                            src={
+                              allUsers.find(
+                                (user) => user.email === option.value
+                              )?.profileImgUrl || "/user.png"
+                            }
+                            alt="User Avatar"
+                            width={40}
+                            height={40}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                          <div className="flex-1">
+                            <div className="font-semibold">
+                              {allUsers.find(
+                                (user) => user.email === option.value
+                              )?.name || "Unknown User"}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {allUsers.find(
+                                (user) => user.email === option.value
+                              )?.email || option.value}
+                              <br />
+                              {allUsers.find(
+                                (user) => user.email === option.value
+                              )?.role || "No Role"}
+                            </div>
+                          </div>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
 
-                    <div className="flex w-full gap-4">
-                      <div className="space-y-1 w-full">
-                        <Label htmlFor="role">Role</Label>
-                        <select
-                          id="role"
-                          value={selectedRole}
-                          onChange={(e) => setSelectedRole(e.target.value)}
-                          className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
-                        >
-                            <option value="">Select Role</option>
-                          <option value="project-manager">Project Manager</option>
-                          <option value="project-member">Project Member</option>
-                        </select>
-                      </div>
-                    </div>
+      <div className="flex w-full gap-4">
+        <div className="space-y-1 w-full">
+          <Label htmlFor="role">Role in project</Label>
+          <select
+            id="role"
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value)}
+            className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
+          >
+            <option value="">Select Role in Project</option>
+            <option value="project-manager">Project Manager</option>
+            <option value="project-member">Project Member</option>
+            {/* Add other roleInProject options as needed */}
+          </select>
+        </div>
+      </div>
 
-                    <div className="flex w-full gap-4">
-                      <div className="space-y-1 w-full">
-                        <Label htmlFor="responsibility">Responsibility</Label>
-                        <select
-                          id="responsibility"
-                          value={selectedResponsibility}
-                          onChange={(e) => setSelectedResponsibility(e.target.value)}
-                          className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
-                        >
-                          <option value="">Select Responsibility</option>
-                            
-                          <option value="content">Content</option>
-                          <option value="research">Research</option>
-                          <option value="design">Design</option>
-                          <option value="development">Development</option>
-                          <option value="frontend">Frontend</option>
-                          <option value="backend">Backend</option>
-                          <option value="fullstack">Full Stack</option>
-                          <option value="testing">Testing</option>
-                          <option value="debugging">Debugging</option>
-                          <option value="deployment">Deployment</option>
-                          <option value="maintain">Maintain</option>
-                      
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={!selectedUser || !selectedRole || !selectedResponsibility}
-                  >
-                    Add Participant
-                  </Button>
-                </div>
-              </form>
+      <div className="flex w-full gap-4">
+        <div className="space-y-1 w-full">
+          <Label htmlFor="responsibility">Responsibility</Label>
+          <select
+            id="responsibility"
+            value={selectedResponsibility}
+            onChange={(e) => setSelectedResponsibility(e.target.value)}
+            className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
+          >
+            <option value="">Select Responsibility</option>
+            <option value="content">Content</option>
+            <option value="research">Research</option>
+            <option value="design">Design</option>
+            <option value="development">Development</option>
+            <option value="frontend">Frontend</option>
+            <option value="backend">Backend</option>
+            <option value="fullstack">Full Stack</option>
+            <option value="testing">Testing</option>
+            <option value="debugging">Debugging</option>
+            <option value="deployment">Deployment</option>
+            <option value="maintain">Maintain</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <Button
+      type="submit"
+      disabled={!selectedUser || !selectedRole || !selectedResponsibility}
+    >
+      Add Participant
+    </Button>
+  </div>
+</form>
+
 
               <div className="mt-4">
                 <h3 className="text-xl font-semibold">Participants</h3>
@@ -493,7 +513,7 @@ const handleSubmit = async (e) => {
                         </div>
                         <div className="flex flex-col gap-1 mb-2 border border-slate-200 p-2 rounded-lg">
                           <div className="font-medium text-md flex flex-row gap-1">
-                            {participant.role}
+                            {participant.roleInProject}
                           </div>
                           <div className="font-medium text-md flex flex-row gap-1">
                             {participant.responsibility}
