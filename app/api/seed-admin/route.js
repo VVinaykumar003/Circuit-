@@ -21,7 +21,7 @@ export async function POST() {
       name: "Admin User",
       role: "admin",
       profileState: "active",
-      password: "dummy-password", // Not used since you auth via env
+      password: adminPassword, // Not used since you auth via env
       gender: "other",
       phoneNumber: "0000000000",
       dateOfBirth: "1990-01-01",
