@@ -1,7 +1,7 @@
 // app/api/projectUpdates/addUpdate/route.ts
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import ProjectUpdate from "@/models/ProjectUpdate";
+import ProjectUpdate from "@/app/models/ProjectUpdate";
 
 export async function POST(req) {
   try {
