@@ -135,7 +135,7 @@ export default function CreateUser() {
       setLoadingBtn(false);
       return;
     }
-    console.log('length : ' , formData.phoneNumber.length)
+   
     // if (formData.phoneNumber.length !== 12) {
     //   setError("Only 10 digit mobile numbers are allowed");
     //   setLoadingBtn(false);

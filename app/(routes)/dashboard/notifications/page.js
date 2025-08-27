@@ -119,7 +119,7 @@ export default function NotificationPage() {
       const toEmail = isPublic
         ? eligibleUsers.map((u) => ({ email: u.email, state: "unread" }))
         : selectedUsers
-            .filter((u) => ["admin", "manager"].includes(u.role))
+            .filter((u) => ["admin", "manager","member"].includes(u.role))
             .map((u) => ({ email: u.email, state: "unread" }));
 
       if (toEmail.length === 0) {
@@ -140,6 +140,8 @@ export default function NotificationPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(notificationData),
       });
+
+
 
       if (!res.ok) throw new Error("Failed to send notification");
       toast.success("Notification sent successfully");

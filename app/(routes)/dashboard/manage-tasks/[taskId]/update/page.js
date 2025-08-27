@@ -9,9 +9,9 @@ export default function TaskUpdatePage() {
   const router = useRouter();
   const params = useParams();
   const taskId = params.taskId;
-  
+ 
   // ✅ Fix projectName extraction - check your URL structure
-  const projectName = params.projectName || params.project; // Try both possible param names
+  const projectName = params.projectId || params.project; // Try both possible param names
 
   const [currentUser, setCurrentUser] = useState(null);
   const [task, setTask] = useState(null);
@@ -109,6 +109,7 @@ export default function TaskUpdatePage() {
         
         const data = await res.json();
         setTask(data);
+        console.log("data in ticket  : ",data)
         setTitle(data.title || "");
         setDescription(data.description || "");
         setMemberIds(data.assignees?.map((assignee) => assignee.user?._id || assignee.user || assignee._id || assignee) || []);
@@ -145,10 +146,10 @@ export default function TaskUpdatePage() {
         setParticipants(parts);
 
         const mgrs = parts.filter((p) =>
-          ["admin", "manager", "project-manager"].includes(p.role?.toLowerCase())
+          ["admin", "manager", "project-manager"].includes(p.roleInProject?.toLowerCase())
         );
         const membs = parts.filter(
-          (p) => !["admin", "manager", "project-manager"].includes(p.role?.toLowerCase())
+          (p) => !["admin", "manager", "project-manager"].includes(p.roleInProject?.toLowerCase())
         );
 
         setManagers(mgrs);
@@ -191,10 +192,10 @@ export default function TaskUpdatePage() {
         setParticipants(parts);
 
         const mgrs = parts.filter((p) =>
-          ["admin", "manager", "project-manager"].includes(p.role?.toLowerCase())
+          ["admin", "manager", "project-manager"].includes(p.roleInProject?.toLowerCase())
         );
         const membs = parts.filter(
-          (p) => !["admin", "manager", "project-manager"].includes(p.role?.toLowerCase())
+          (p) => !["admin", "manager", "project-manager"].includes(p.roleInProject?.toLowerCase())
         );
 
         setManagers(mgrs);
@@ -415,7 +416,7 @@ async function createTicket(e) {
           >
             {[...managers, ...members].map((m) => (
               <option key={m.userId || m._id} value={m.userId || m._id}>
-                {m.username || m.name || m.email} ({m.role})
+                {m.username || m.name || m.email} ({m.roleInProject})
               </option>
             ))}
           </select>
@@ -454,7 +455,7 @@ async function createTicket(e) {
             <span className="italic text-sm">[{t.status}]</span>
             <p>{t.description}</p>
             <p>
-             Assigned to: {t.assignedTo?.username || t.assignedTo?.name || t.assignedTo?.email || "Unassigned"}
+             Assigned to: {t.assignedTo?.username || t.assignedTo?.name || t.assignedTo?.email || t.assignedTo?._id ||"Unassigned"}
             </p>
           </div>
         ))}

@@ -43,7 +43,7 @@ function SideNav() {
 
  const handleSignOut = async () => {
   try {
-    await fetch("/api/auth/logout", { method: "GET" }); // ✅ Use GET
+    await fetch("/api/auth/logout", { method: "POST" }); // ✅ Use GET
     router.push("/login");
   } catch (error) {
     console.error("Sign out error:", error);
@@ -89,7 +89,7 @@ function SideNav() {
       icon: <HiMiniUserGroup className="text-xl" />,
     },
       // 🔹 New Manage Tasks link (admin + manager only)
-  (userRole === "admin" || userRole === "manager") && {
+  {
     id: 7,
     name: "Manage Tasks",
     path: "/dashboard/manage-tasks",

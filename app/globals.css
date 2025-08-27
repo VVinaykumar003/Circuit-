@@ -67,3 +67,13 @@
     @apply bg-background text-foreground;
   }
 }
+.Toastify__toast--success .Toastify__icon {
+  width: 16px !important;   /* adjust width */
+  height: 16px !important;  /* adjust height */
+  margin-right: 8px !important; /* optional spacing */
+}
+
+.Toastify__toast--success .Toastify__icon svg {
+  width: 16px !important;
+  height: 16px !important;
+}

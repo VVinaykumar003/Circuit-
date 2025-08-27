@@ -16,7 +16,7 @@ export default function UserHoverCard({ email }) {
         .then((data) => {
           setUser(data.user);
 
-          console.log("User List  : ",data.user)
+          // console.log("User List  : ",data.user)
         })
         .catch((err) => {
           console.error("Error fetching user:", err);

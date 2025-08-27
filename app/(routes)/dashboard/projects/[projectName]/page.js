@@ -257,7 +257,7 @@ const refreshTasks = async () => {
   }
 };
 
-console.log(tasks )
+// console.log(tasks )
 
 
   const handleFileChange = (e) => setFile(e.target.files[0] || null);
@@ -727,11 +727,12 @@ console.log(tasks )
          {/* -------------------Manage-Task---------------------- */}
         <TabsContent value="manage-tasks">
 
-           <CreateTaskForm
-                    projectId={project._id}
-                    currentUser={user}
-                    onTaskCreated={refreshTasks}
-                  />
+          <CreateTaskForm
+  projectId={project._id}
+  projectName={project.projectName}  // pass projectName here
+  currentUser={user}
+  onTaskCreated={refreshTasks}
+/>
           {/* <Card>
             <CardHeader>
               <CardTitle>Manage Tasks</CardTitle>

@@ -4,27 +4,32 @@ import dbConnect from "@/lib/mongodb";
 import Task from "@/app/models/Tasks";
 import { authenticate } from "@/lib/middleware/authenticate"; // ✅ JWT helper
 import { checkRole } from "@/lib/middleware/checkRole"; // ✅ role helper
+import mongoose from "mongoose";
 
 // 🔹 GET → fetch single task
 export async function GET(req, { params }) {
-  await dbConnect();
   const { taskId } = params;
 
+  if (!mongoose.Types.ObjectId.isValid(taskId)) {
+    return NextResponse.json({ error: 'Invalid Task ID' }, { status: 400 });
+  }
+
   try {
+    await dbConnect();
+
     const task = await Task.findById(taskId)
-      .populate("subtasks")
-      .populate("tickets.assignedTo")
-      .populate("tickets.comments.author")
-      .populate("createdBy");
-      
+      .populate('assignees.user', 'name email')
+      .populate('createdBy', 'name email')
+      .lean();
+
     if (!task) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    return NextResponse.json(task, { status: 200 });
-  } catch (err) {
-    console.error("GET /tasks/[taskId] error:", err);
-    return NextResponse.json({ error: "Failed to fetch task", details: err.message }, { status: 500 });
+    return NextResponse.json(task);
+  } catch (error) {
+    console.error('GET /api/tasks/[taskId] error:', error);
+    return NextResponse.json({ error: 'Failed to fetch task' }, { status: 500 });
   }
 }
 

@@ -17,7 +17,7 @@ export async function GET(req) {
       );
     }
 
-    console.log('Searching for notifications with email:', email);
+    // console.log('Searching for notifications with email:', email);
 
     const notifications = await Notification.find({
       "toEmail.email": email
@@ -25,7 +25,7 @@ export async function GET(req) {
     .sort({ createdAt: -1 })
     .lean();
 
-    console.log(`Found ${notifications.length} notifications`);
+    // console.log(`Found ${notifications.length} notifications`);
 
     return NextResponse.json(notifications);
     

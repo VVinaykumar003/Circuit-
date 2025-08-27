@@ -70,6 +70,10 @@ const userSchema = new mongoose.Schema({
       ref: 'Notification',
     },
   ],
+  tasks:[{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Task',
+    },],
   veriyToken: {
     type: String,
     default: '',

@@ -10,7 +10,6 @@ import { verifyAuth } from "@/lib/auth";
 
 
 // 🔹 GET → fetch all tasks
-// 🔹 GET → fetch all tasks
 export async function GET(req) {
   try {
     // Authenticate user first
@@ -18,8 +17,7 @@ export async function GET(req) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    // Connect to database with error handling
+   // Connect to database with error handling
     try {
       await dbConnect();
     } catch (dbError) {
@@ -32,10 +30,8 @@ export async function GET(req) {
 
     // ✅ Get projectName from query parameters
     const { searchParams } = new URL(req.url);
-    const projectName = searchParams.get('projectName');
-    
-    console.log("Fetching tasks for projectName:", projectName);
-
+    const projectName = searchParams.get('projectName')
+    const projectId = searchParams.get('projectId')
     let query = {};
 
     if (projectName) {
@@ -49,14 +45,12 @@ export async function GET(req) {
       
       query.projectId = project._id;
     }
-
+    
     // Add role-based filtering
     if (user.role === "member") {
       // Members can only see tasks assigned to them
-      query["assignees.user"] = user._id;
+      query["assignees.user"] = user.id;
     }
-
-    console.log("Query:", query);
 
     // ✅ Simplified query without problematic populates
     const tasks = await Task.find(query)
@@ -64,8 +58,6 @@ export async function GET(req) {
       .populate("assignees.user", "name email") // Populate assignee user info
       .lean() // For better performance
       .exec();
-
-    console.log(`Found ${tasks.length} tasks`);
 
     return NextResponse.json(tasks, { status: 200 });
   } catch (err) {
@@ -100,7 +92,6 @@ export async function POST(req) {
 
     // Parse body
     const body = await req.json();
-    // console.log("Received task data:", body);
 
     // Validate required fields
     const requiredFields = ["title", "description", "projectId", "assignees"];

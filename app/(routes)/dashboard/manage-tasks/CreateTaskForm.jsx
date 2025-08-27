@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-export default function CreateTaskForm({ projectId, currentUser, onTaskCreated }) {
+
+export default function CreateTaskForm({ projectId, projectName, currentUser, onTaskCreated }) {
   // console.log(projectId, currentUser, onTaskCreated)
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -34,23 +35,25 @@ export default function CreateTaskForm({ projectId, currentUser, onTaskCreated }
       participants.forEach((participant, index) => {
         console.log(`Participant ${index}:`);
         console.log(`- Email: ${participant.email}`);
-        console.log(`- Role: ${participant.role}`);           // ✅ Access role
+        console.log(`- Role: ${participant.roleInProject}`);           // ✅ Access role
         console.log(`- Responsibility: ${participant.responsibility}`);
         console.log(`- ID: ${participant._id}`);
       });
       
       // ✅ Or get specific roles
-      const projectManagers = participants.filter(p => p.responsibility === "project-manager");
-      const projectMembers = participants.filter(p => p.responsibility === "project-member");
+      const projectManagers = participants.filter(p => p.roleInProject === "project-manager");
+      const projectMembers = participants.filter(p => p.roleInProject === "project-member");
       
       console.log("Project Managers:", projectManagers.map(p => ({
         email: p.email,
-        role: p.role  // ✅ Access role
+        role: p.roleInProject
+  // ✅ Access role
       })));
       
       console.log("Project Members:", projectMembers.map(p => ({
         email: p.email, 
-        role: p.role  // ✅ Access role
+        role: p.roleInProject
+  // ✅ Access role
       })));
       
     } catch (e) {
@@ -90,6 +93,8 @@ export default function CreateTaskForm({ projectId, currentUser, onTaskCreated }
       title: title.trim(),
       description: description.trim(),
       projectId,
+      projectName,   // Include projectName in your task creation payload
+      userId: currentUser._id,
       assignees: assigneeIds.map((id) => ({
         user: id,
         state: "assigned",
@@ -118,7 +123,7 @@ export default function CreateTaskForm({ projectId, currentUser, onTaskCreated }
     toast.success("Task created successfully!");
     setTitle("");
     setDescription("");
-    setAssigneeIds([]);
+    setAssigneeIds(["projectManagers","projectMembers"]);
     onTaskCreated?.();
   } catch (err) {
     console.error("Task creation error:", err);
@@ -207,7 +212,7 @@ export default function CreateTaskForm({ projectId, currentUser, onTaskCreated }
           .filter((p) => (p.userId || p._id) !== currentUser._id)
           .map((p) => (
             <option key={p.userId || p._id} value={p.userId || p._id}>
-              {p.username || p.name || p.email} ({p.role})
+              {p.username || p.name || p.email} ({p.roleInProject})
             </option>
           ))}
       </select>
