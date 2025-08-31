@@ -6,13 +6,14 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { MdNotifications } from "react-icons/md";
 import { ImUserPlus } from "react-icons/im";
-import { FaFileCirclePlus } from "react-icons/fa6";
+import { FaFileCirclePlus, FaCopy } from "react-icons/fa6";
 import { RiFolderChartFill } from "react-icons/ri";
-import { FaCopy } from "react-icons/fa";
 import { HiMiniUserGroup } from "react-icons/hi2";
+import { BsCalendarCheck, BsClipboardCheck } from "react-icons/bs";
 // import { setSession } from "@/app/api/auth/session/route";
 // import { setSession, deleteSession } from "@/app/api/auth/session/route"; // Adjust the import path as necessary
 //F:\Projects\Circuit\TaskZ\app\(routes) F:\Projects\Circuit\TaskZ\app\(routes)
+
 function SideNav() {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,9 +29,8 @@ function SideNav() {
           router.push("/login");
           return;
         }
-
         const data = await res.json();
-        setUserRole(data.role);
+        setUserRole(data.role); // "member" | "manager" | "admin"
       } catch (error) {
         setUserRole(null);
         router.push("/login");
@@ -41,17 +41,17 @@ function SideNav() {
     fetchSession();
   }, [router]);
 
- const handleSignOut = async () => {
-  try {
-    await fetch("/api/auth/logout", { method: "POST" }); // ✅ Use GET
-    router.push("/login");
-  } catch (error) {
-    console.error("Sign out error:", error);
-  }
-};
+  const handleSignOut = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+    } catch (error) {
+      console.error("Sign out error:", error);
+    }
+  };
 
-  // Define the menu list
-  const menuList = [
+  // 📌 Menu list by role
+  const baseMenu = [
     {
       id: 1,
       name: "My Projects",
@@ -64,38 +64,72 @@ function SideNav() {
       path: "/dashboard/projects",
       icon: <RiFolderChartFill className="text-xl" />,
     },
-    userRole !== "member" && {
-      id: 3,
-      name: "Add New User",
-      path: "/dashboard/create",
-      icon: <ImUserPlus className="text-xl" />,
-    },
-    userRole !== "member" && {
-      id: 4,
-      name: "Create Project",
-      path: "/dashboard/create-project",
-      icon: <FaFileCirclePlus className="text-xl" />,
-    },
     {
-      id: 5,
+      id: 3,
       name: "Notifications",
       path: "/dashboard/notifications",
       icon: <MdNotifications className="text-xl" />,
     },
     {
-      id: 6,
+      id: 4,
       name: "Members",
       path: "/dashboard/profiles",
       icon: <HiMiniUserGroup className="text-xl" />,
     },
-      // 🔹 New Manage Tasks link (admin + manager only)
-  {
-    id: 7,
-    name: "Manage Tasks",
-    path: "/dashboard/manage-tasks",
-    icon: <RiFolderChartFill className="text-xl" />,
-  },
-  ].filter(Boolean); // Remove falsy (non-admin links for member)
+    {
+      id: 5,
+      name: "Mark Attendance",
+      path: "/dashboard/attendance",
+      icon: <BsCalendarCheck className="text-xl" />,
+    },
+  ];
+
+  const managerMenu = [
+    {
+      id: 6,
+      name: "Approve Attendance",
+      path: "/dashboard/approve-attendance",
+      icon: <BsClipboardCheck className="text-xl" />,
+    },
+    {
+      id: 7,
+      name: "Attendance Report",
+      path: "/dashboard/attendance-report",
+      icon: <RiFolderChartFill className="text-xl" />,
+    },
+    {
+      id: 8,
+      name: "Manage Tasks",
+      path: "/dashboard/manage-tasks",
+      icon: <RiFolderChartFill className="text-xl" />,
+    },
+    {
+      id: 9,
+      name: "Create Project",
+      path: "/dashboard/create-project",
+      icon: <FaFileCirclePlus className="text-xl" />,
+    },
+    {
+      id: 10,
+      name: "Add New User",
+      path: "/dashboard/create",
+      icon: <ImUserPlus className="text-xl" />,
+    },
+  ];
+
+  const adminMenu = [
+    {
+      id: 11,
+      name: "User Management",
+      path: "/dashboard/signUp", // example
+      icon: <ImUserPlus className="text-xl" />,
+    },
+  ];
+
+  // Build final menu depending on role
+  let menuList = [...baseMenu];
+  if (userRole === "manager") menuList = [...baseMenu, ...managerMenu];
+  if (userRole === "admin") menuList = [...baseMenu, ...managerMenu, ...adminMenu];
 
   if (loading) {
     return (
@@ -126,6 +160,7 @@ function SideNav() {
           </Link>
         </div>
       </div>
+
       {/* Menu Section */}
       <div className="flex-grow flex flex-col justify-center">
         {menuList.map((menu) => (
@@ -141,6 +176,7 @@ function SideNav() {
           </Link>
         ))}
       </div>
+
       {/* Sign Out Section */}
       <div className="flex justify-center items-center">
         <Button
