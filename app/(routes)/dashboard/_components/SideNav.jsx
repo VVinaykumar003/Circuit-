@@ -50,7 +50,7 @@ function SideNav() {
     }
   };
 
-  // 📌 Menu list by role
+  // 📌 Base menu (common for all)
   const baseMenu = [
     {
       id: 1,
@@ -76,6 +76,10 @@ function SideNav() {
       path: "/dashboard/profiles",
       icon: <HiMiniUserGroup className="text-xl" />,
     },
+  ];
+
+  // 📌 Only for member + manager
+  const attendanceMenu = [
     {
       id: 5,
       name: "Mark Attendance",
@@ -84,52 +88,50 @@ function SideNav() {
     },
   ];
 
+  // 📌 Manager-only menu
   const managerMenu = [
-    {
-      id: 6,
-      name: "Approve Attendance",
-      path: "/dashboard/approve-attendance",
-      icon: <BsClipboardCheck className="text-xl" />,
-    },
-    {
-      id: 7,
-      name: "Attendance Report",
-      path: "/dashboard/attendance-report",
-      icon: <RiFolderChartFill className="text-xl" />,
-    },
-    {
-      id: 8,
-      name: "Manage Tasks",
-      path: "/dashboard/manage-tasks",
-      icon: <RiFolderChartFill className="text-xl" />,
-    },
-    {
-      id: 9,
-      name: "Create Project",
-      path: "/dashboard/create-project",
-      icon: <FaFileCirclePlus className="text-xl" />,
-    },
-    {
-      id: 10,
-      name: "Add New User",
-      path: "/dashboard/create",
-      icon: <ImUserPlus className="text-xl" />,
-    },
+  {
+    id: 6,
+    name: "Attendance Management",
+    path: "/dashboard/attendance-management",
+    icon: <BsClipboardCheck className="text-xl" />,
+  },
+  {
+    id: 7,
+    name: "Manage Tasks",
+    path: "/dashboard/manage-tasks",
+    icon: <RiFolderChartFill className="text-xl" />,
+  },
+  {
+    id: 8,
+    name: "Create Project",
+    path: "/dashboard/create-project",
+    icon: <FaFileCirclePlus className="text-xl" />,
+  },
+  {
+    id: 9,
+    name: "Add New User",
+    path: "/dashboard/create",
+    icon: <ImUserPlus className="text-xl" />,
+  },
   ];
 
+  // 📌 Admin-only menu
   const adminMenu = [
     {
-      id: 11,
+      id: 10,
       name: "User Management",
-      path: "/dashboard/signUp", // example
+      path: "/dashboard/signUp",
       icon: <ImUserPlus className="text-xl" />,
     },
   ];
 
   // Build final menu depending on role
   let menuList = [...baseMenu];
-  if (userRole === "manager") menuList = [...baseMenu, ...managerMenu];
-  if (userRole === "admin") menuList = [...baseMenu, ...managerMenu, ...adminMenu];
+
+  if (userRole === "member") menuList = [...baseMenu, ...attendanceMenu];
+  if (userRole === "manager") menuList = [...baseMenu, ...attendanceMenu, ...managerMenu];
+  if (userRole === "admin") menuList = [...baseMenu, ...managerMenu,...adminMenu];
 
   if (loading) {
     return (
