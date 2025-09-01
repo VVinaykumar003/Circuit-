@@ -76,6 +76,12 @@ function SideNav() {
       path: "/dashboard/profiles",
       icon: <HiMiniUserGroup className="text-xl" />,
     },
+      {
+    id: 7,
+    name: "Manage Tasks",
+    path: "/dashboard/manage-tasks",
+    icon: <RiFolderChartFill className="text-xl" />,
+  },
   ];
 
   // 📌 Only for member + manager
@@ -96,12 +102,7 @@ function SideNav() {
     path: "/dashboard/attendance-management",
     icon: <BsClipboardCheck className="text-xl" />,
   },
-  {
-    id: 7,
-    name: "Manage Tasks",
-    path: "/dashboard/manage-tasks",
-    icon: <RiFolderChartFill className="text-xl" />,
-  },
+
   {
     id: 8,
     name: "Create Project",
