@@ -10,7 +10,7 @@ export default function AttendanceReportPage() {
     startDate: "",
     endDate: "",
     status: "",
-    employeeId: ""
+    userId: ""
   });
 
   useEffect(() => {
@@ -19,24 +19,31 @@ export default function AttendanceReportPage() {
 
   const fetchReport = async () => {
     try {
-      // ✅ only send non-empty filters
-      const params = {};
-      if (filters.startDate) params.startDate = filters.startDate;
-      if (filters.endDate) params.endDate = filters.endDate;
-      if (filters.status) params.status = filters.status;
-      if (filters.employeeId) params.employeeId = filters.employeeId;
+    const params = {};
+    if (filters.startDate) params.startDate = filters.startDate;
+    if (filters.endDate) params.endDate = filters.endDate;
+    if (filters.status) params.status = filters.status;
+    if (filters.userId) params.userId = filters.userId;
 
-      const res = await axios.get("/api/attendance/report", { params });
-      setReport(res.data);
-    } catch (err) {
-      console.error("Error fetching report", err);
-    }
-  };
+    const token = localStorage.getItem("token");
+
+    const res = await axios.get("/api/attendance/report", {
+      params,
+      headers: {
+        Authorization: `Bearer ${token}`, // ✅ required
+      },
+    });
+
+    setReport(res.data);
+  } catch (err) {
+    console.error("Error fetching report", err);
+  }
+};
 
   const exportToExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(
       report.map((r) => ({
-        Employee: r.userId?.name || "",
+        User: r.userId?.name || "",
         Date: format(new Date(r.date), "yyyy-MM-dd"),
         "Check In": r.checkIn || "-",
         "Check Out": r.checkOut || "-",
@@ -77,7 +84,7 @@ export default function AttendanceReportPage() {
           <option value="approved">Approved</option>
           <option value="rejected">Rejected</option>
         </select>
-        {/* optional: future dropdown for employee filter */}
+        {/* optional: future dropdown for user filter */}
         <button
           onClick={fetchReport}
           className="bg-blue-600 text-white px-4 py-2 rounded"
@@ -97,7 +104,7 @@ export default function AttendanceReportPage() {
         <table className="w-full border-collapse border border-gray-200 text-sm">
           <thead>
             <tr className="bg-gray-100">
-              <th className="border p-2">Employee</th>
+              <th className="border p-2">user</th>
               <th className="border p-2">Date</th>
               <th className="border p-2">Check In</th>
               <th className="border p-2">Check Out</th>

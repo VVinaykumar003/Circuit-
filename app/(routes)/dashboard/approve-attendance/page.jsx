@@ -38,7 +38,7 @@ export default function ApproveAttendancePage() {
       {requests.map((req) => (
         <div key={req._id} className="flex justify-between items-center border p-3 mb-2 rounded">
           <div>
-            <p className="font-medium">{req.userId.name} ({req.userId.email})</p>
+            <p className="font-medium">{req.userId?.name || "Unknown User"} ({req.userId?.email || "N/A"})</p>
             <p>Date: {new Date(req.date).toDateString()}</p>
           </div>
           <div className="space-x-2">

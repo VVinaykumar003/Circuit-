@@ -2,34 +2,48 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Attendance from "@/app/models/Attendance";
 import User from "@/app/models/User";
-import {getServerSession} from "@/lib/session";
+import { verifyToken } from "@/lib/auth";
 
 export async function GET(req) {
   try {
     await dbConnect();
-    const session = await getServerSession();
-    if (!session) {return NextResponse.json({ error: "Unauthorized" }, { status: 401 });}
+
+    // 🔹 Extract token
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const token = authHeader.split(" ")[1];
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    // 🔹 Get logged in user
+    const currentUser = await User.findById(decoded.id);
+    if (!currentUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
     const { searchParams } = new URL(req.url);
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
-    const userId = searchParams.get("employeeId"); // keep query param name same, map to userId
+    const userId = searchParams.get("userId");
     const status = searchParams.get("status");
 
     let filters = {};
 
     // Date filter
-   if (startDate && endDate) {
-  const start = new Date(startDate);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(endDate);
-  end.setHours(23, 59, 59, 999);
-  filters.date = { $gte: start, $lte: end };
-}
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      filters.date = { $gte: start, $lte: end };
+    }
 
-
-    // User filter
-    if (userId && userId !== ":1") {
+    // User filter (only if provided)
+    if (userId) {
       filters.userId = userId;
     }
 
@@ -38,15 +52,15 @@ export async function GET(req) {
       filters.approvalStatus = status;
     }
 
-    // Role-based access
-    const role = session.user.role;
-    if (role === "member") {
-      filters.userId = session.user.id;
-    } else if (role === "manager") {
-      const teamMembers = await User.find({ manager: session.user.id }).select("_id");
-      filters.userId = { $in: teamMembers.map(u => u._id) };
+    // 🔹 Role-based access
+    if (currentUser.role === "member") {
+      filters.userId = currentUser._id;
+    } else if (currentUser.role === "manager") {
+      const teamMembers = await User.find({ manager: currentUser._id }).select("_id");
+      filters.userId = { $in: teamMembers.map((u) => u._id) };
     }
 
+    // 🔹 Fetch attendance
     const report = await Attendance.find(filters)
       .populate("userId", "name email role")
       .populate("approvedBy", "name role")
