@@ -43,9 +43,23 @@ export async function GET(req) {
       approvalStatus: "rejected",
     });
 
+    const officeCount = await Attendance.countDocuments({
+  date: { $gte: today, $lt: tomorrow },
+  approvalStatus: "approved",
+  workMode: "office",
+});
+
+const wfhCount = await Attendance.countDocuments({
+  date: { $gte: today, $lt: tomorrow },
+  approvalStatus: "approved",
+  workMode: "wfh",
+});
+
     return NextResponse.json({
       present: presentCount,
       pending: pendingCount,
+      office: officeCount,
+      wfh: wfhCount,
       rejected: rejectedCount,
     });
   } catch (error) {

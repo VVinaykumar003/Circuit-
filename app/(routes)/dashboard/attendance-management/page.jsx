@@ -95,6 +95,7 @@ export default function AttendanceManagementPage() {
       report.map((r) => ({
         User: r.userId?.name || "",
         Date: format(new Date(r.date), "yyyy-MM-dd"),
+        WorkMode: r.workMode || "-", // <-- Added site field
         "Check In": r.checkIn || "-",
         "Check Out": r.checkOut || "-",
         Status: r.approvalStatus || "pending",
@@ -168,6 +169,7 @@ export default function AttendanceManagementPage() {
                   {req.userId?.email || "N/A"})
                 </p>
                 <p>Date: {new Date(req.date).toDateString()}</p>
+                <p>Work Mode: {req.workMode || "-"}</p> 
               </div>
               <div className="space-x-2">
                 <button
@@ -245,8 +247,7 @@ export default function AttendanceManagementPage() {
                 <tr className="bg-gray-100">
                   <th className="border p-2">User</th>
                   <th className="border p-2">Date</th>
-                  <th className="border p-2">Check In</th>
-                  <th className="border p-2">Check Out</th>
+                   <th className="border p-2">Work Mode</th> {/* <-- New Column */}
                   <th className="border p-2">Status</th>
                   <th className="border p-2">Approved By</th>
                 </tr>
@@ -258,8 +259,7 @@ export default function AttendanceManagementPage() {
                     <td className="border p-2">
                       {format(new Date(att.date), "yyyy-MM-dd")}
                     </td>
-                    <td className="border p-2">{att.checkIn || "-"}</td>
-                    <td className="border p-2">{att.checkOut || "-"}</td>
+                    <td className="border p-2">{att.workMode || "-"}</td>
                     <td className="border p-2 capitalize">
                       {att.approvalStatus || "pending"}
                     </td>

@@ -6,6 +6,7 @@ export default function AttendancePage() {
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState(null);
   const [lastDate, setLastDate] = useState(null);
+  const [workMode, setWorkMode] = useState("office"); // default selection
 
   // Mark attendance
   const handleMarkAttendance = async () => {
@@ -17,14 +18,16 @@ export default function AttendancePage() {
           "Content-Type": "application/json",
           authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        body: JSON.stringify({ status: "present" }),
+        body: JSON.stringify({
+          status: "present",
+          workMode, // ✅ send workMode
+        }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        setMessage("✅ Attendance marked successfully!");
-        // Instead of trusting only this response, fetch latest status from DB
-        await fetchMyAttendance();
+        setMessage(`✅ Attendance marked successfully (${workMode})!`);
+        await fetchMyAttendance(); // Refresh latest status
       } else {
         setMessage(data.error || "❌ Failed to mark attendance");
       }
@@ -45,8 +48,9 @@ export default function AttendancePage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setStatus(data.status); // status should be "Pending", "Approved", "Rejected"
+        setStatus(data.approvalStatus); // status: "Pending", "Approved", "Rejected"
         setLastDate(data.date);
+        if (data.workMode) setWorkMode(data.workMode); // keep saved workMode
       }
     } catch (error) {
       console.error(error);
@@ -59,6 +63,7 @@ export default function AttendancePage() {
 
   // Status badge component
   const StatusBadge = ({ status }) => {
+    if (!status) return null;
     let color =
       status === "Approved"
         ? "bg-green-100 text-green-700 border-green-400"
@@ -81,6 +86,31 @@ export default function AttendancePage() {
 
       {/* Card */}
       <div className="bg-white shadow rounded-2xl p-6 border">
+        {/* Work mode selection */}
+        <div className="flex justify-between mb-4">
+          <label className="flex items-center space-x-2">
+            <input
+              type="radio"
+              name="workMode"
+              value="office"
+              checked={workMode === "office"}
+              onChange={(e) => setWorkMode(e.target.value)}
+            />
+            <span>🏢 Office</span>
+          </label>
+
+          <label className="flex items-center space-x-2">
+            <input
+              type="radio"
+              name="workMode"
+              value="wfh"
+              checked={workMode === "wfh"}
+              onChange={(e) => setWorkMode(e.target.value)}
+            />
+            <span>🏠 Work From Home</span>
+          </label>
+        </div>
+
         <button
           onClick={handleMarkAttendance}
           disabled={loading}
@@ -111,9 +141,16 @@ export default function AttendancePage() {
           <div className="mt-6 text-center">
             <p className="text-gray-600 mb-2">Latest Attendance Status</p>
             <StatusBadge status={status} />
+
             {lastDate && (
               <p className="text-sm text-gray-500 mt-2">
                 {new Date(lastDate).toLocaleString()}
+              </p>
+            )}
+
+            {workMode && (
+              <p className="text-sm text-blue-600 mt-1">
+                Mode: {workMode === "wfh" ? "🏠 Work From Home" : "🏢 Office"}
               </p>
             )}
           </div>

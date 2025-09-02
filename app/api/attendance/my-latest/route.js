@@ -28,8 +28,9 @@ export async function GET(req) {
     }
 
     return NextResponse.json({
-      status: latest.approvalStatus || "pending",
+      approvalStatus: latest.approvalStatus || "pending",
       date: latest.date,
+      workMode: latest.workMode,
       approvedBy: latest.approvedBy || null,
     });
   } catch (error) {

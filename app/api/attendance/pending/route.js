@@ -22,7 +22,8 @@ export async function GET(req) {
     }
 
     const pending = await Attendance.find({ approvalStatus: "pending" })
-      .populate("userId", "name email role");
+      .populate("userId", "name email role")
+      .select("date workMode approvalStatus userId");
 
     return NextResponse.json({ success: true, pending });
   } catch (error) {

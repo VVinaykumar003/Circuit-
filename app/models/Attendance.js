@@ -17,6 +17,11 @@ const attendanceSchema = new mongoose.Schema(
       enum: ["present", "absent", "pending"],
       default: "pending",
     },
+     workMode: {
+      type: String,
+      enum: ["office", "wfh"],
+      required: true, // mandatory
+    },
     timestamp: {
       type: Date,
       default: Date.now,

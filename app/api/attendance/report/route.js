@@ -64,8 +64,9 @@ export async function GET(req) {
     const report = await Attendance.find(filters)
       .populate("userId", "name email role")
       .populate("approvedBy", "name role")
-      .sort({ date: -1 });
-
+      .sort({ date: -1 })
+      .select("date approvalStatus workMode userId approvedBy");
+      
     return NextResponse.json(report);
   } catch (err) {
     console.error("Attendance Report error:", err);
