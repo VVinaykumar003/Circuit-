@@ -131,8 +131,8 @@ function SideNav() {
   let menuList = [...baseMenu];
 
   if (userRole === "member") menuList = [...baseMenu, ...attendanceMenu];
-  if (userRole === "manager") menuList = [...baseMenu, ...attendanceMenu, ...managerMenu];
-  if (userRole === "admin") menuList = [...baseMenu, ...managerMenu,...adminMenu];
+  if (userRole === "manager") menuList = [...baseMenu,  ...attendanceMenu, ...managerMenu];
+  if (userRole === "admin") menuList = [...baseMenu,  ...managerMenu, ...adminMenu];
 
   if (loading) {
     return (
