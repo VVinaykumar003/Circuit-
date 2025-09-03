@@ -6,13 +6,15 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import axios from "axios";
+
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   const router = useRouter();
 
 const handleLogin = async (e) => {
@@ -23,25 +25,28 @@ const handleLogin = async (e) => {
   try {
     console.log('Attempting login for:', email); // Debug log
 
-    const res = await axios.post("/api/auth/session", { 
-      email, 
-      password 
-    });
+          const res = await fetch('/api/auth/session', { method: 'GET', credentials: 'include' });
+        if (!res.ok) {
+          // Unauthorized
+          console.log('Not authenticated');
+        }
+        const session = await res.json();
 
-    console.log('Login response:', res.data); // Debug log
 
-    if (!res.data.token) {
+    console.log('Login response:', session); // Debug log
+
+    if (!session.token) {
       throw new Error('No token received from server');
     }
 
     // Store token in localStorage
-    localStorage.setItem('token', res.data.token);
+    localStorage.setItem('token', session.token);
     
     // Set auth cookie with proper attributes
-    document.cookie = `token=${res.data.token}; path=/; max-age=86400; secure; samesite=strict`;
+    document.cookie = `token=${session.token}; path=/; max-age=86400; secure; samesite=strict`;
 
     // Store user role
-    localStorage.setItem('userRole', res.data.role);
+    localStorage.setItem('userRole', session.role);
 
     // Redirect based on role
     router.push("/dashboard");
@@ -90,21 +95,35 @@ const handleLogin = async (e) => {
             />
           </div>
 
-          <div className="mb-6">
-            <Label
-              htmlFor="password"
-              className="block text-gray-700 font-semibold mb-2"
-            >
-              Password
-            </Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
+              <div className="mb-6 relative">
+                <Label
+                  htmlFor="password"
+                  className="block text-gray-700 font-semibold mb-2"
+                >
+                  Password
+                </Label>
+               <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="pr-10"
+                      rightIcon={
+                        React.cloneElement(
+                          showPassword ? <AiOutlineEyeInvisible /> : <AiOutlineEye />,
+                          {
+                            onClick: () => setShowPassword((prev) => !prev),
+                            className: "cursor-pointer text-gray-600",
+                            tabIndex: 0,
+                            role: "button",
+                            "aria-label": showPassword ? "Hide password" : "Show password",
+                          }
+                        )
+                      }
+                    />
+
+              </div>
 
           <Button
             type="submit"
@@ -117,9 +136,9 @@ const handleLogin = async (e) => {
           </Button>
         </form>
 
-        <p className="text-center text-gray-600 mt-6">
-          Back to{" "}
-          <Link href="/" className="text-blue-500 hover:underline">
+      <p className="text-center text-gray-600 mt-6">
+        Back to{" "}
+        <Link href="/" className="text-blue-500 hover:underline">
             Home
           </Link>
         </p>
