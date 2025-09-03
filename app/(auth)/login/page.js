@@ -125,6 +125,7 @@ const handleLogin = async (e) => {
 
               </div>
 
+
           <Button
             type="submit"
             className={`w-full py-3 mt-2 font-semibold transition-colors ${
@@ -135,6 +136,12 @@ const handleLogin = async (e) => {
             {loading ? "Logging in..." : "Login"}
           </Button>
         </form>
+
+        <p className="text-right mt-2">
+        <Link href="/forgot-password" className="text-blue-500 hover:underline text-sm">
+          Forgot password?
+        </Link>
+      </p>
 
       <p className="text-center text-gray-600 mt-6">
         Back to{" "}
