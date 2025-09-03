@@ -1,17 +1,16 @@
 'use client';
-import React, { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { MdNotifications } from "react-icons/md";
-import { ImUserPlus } from "react-icons/im";
-import { FaFileCirclePlus, FaCopy } from "react-icons/fa6";
-import { RiFolderChartFill } from "react-icons/ri";
-import { HiMiniUserGroup } from "react-icons/hi2";
-import { BsCalendarCheck, BsClipboardCheck } from "react-icons/bs";
+import React, { useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
+import { MdNotifications } from 'react-icons/md';
+import { ImUserPlus } from 'react-icons/im';
+import { FaFileCirclePlus, FaCopy } from 'react-icons/fa6';
+import { RiFolderChartFill } from 'react-icons/ri';
+import { HiMiniUserGroup } from 'react-icons/hi2';
+import { BsCalendarCheck, BsClipboardCheck } from 'react-icons/bs';
 
-function SideNav() {
+function SideNav({ setIsMobileSidebarOpen }) {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -41,68 +40,23 @@ function SideNav() {
 
   // Menu entries for all roles
   const baseMenu = [
-    {
-      id: 2,
-      name: "All Projects",
-      path: "/dashboard/projects",
-      icon: <RiFolderChartFill className="text-xl" />,
-    },
-    {
-      id: 3,
-      name: "Notifications",
-      path: "/dashboard/notifications",
-      icon: <MdNotifications className="text-xl" />,
-    },
-    {
-      id: 4,
-      name: "Members",
-      path: "/dashboard/profiles",
-      icon: <HiMiniUserGroup className="text-xl" />,
-    },
-    {
-      id: 7,
-      name: "Manage Tasks",
-      path: "/dashboard/manage-tasks",
-      icon: <RiFolderChartFill className="text-xl" />,
-    },
+    { id: 2, name: "All Projects", path: "/dashboard/projects", icon: <RiFolderChartFill className="text-xl" /> },
+    { id: 3, name: "Notifications", path: "/dashboard/notifications", icon: <MdNotifications className="text-xl" /> },
+    { id: 4, name: "Members", path: "/dashboard/profiles", icon: <HiMiniUserGroup className="text-xl" /> },
+    { id: 7, name: "Manage Tasks", path: "/dashboard/manage-tasks", icon: <RiFolderChartFill className="text-xl" /> },
   ];
 
   // Only for member and manager
   const attendanceMenu = [
-    {
-      id: 5,
-      name: "Mark Attendance",
-      path: "/dashboard/attendance",
-      icon: <BsCalendarCheck className="text-xl" />,
-    },
-    {
-      id: 1,
-      name: "My Projects",
-      path: "/dashboard",
-      icon: <FaCopy className="text-xl" />,
-    },
+    { id: 5, name: "Mark Attendance", path: "/dashboard/attendance", icon: <BsCalendarCheck className="text-xl" /> },
+    { id: 1, name: "My Projects", path: "/dashboard", icon: <FaCopy className="text-xl" /> },
   ];
 
   // Manager and admin only
   const managerMenu = [
-    {
-      id: 6,
-      name: "Attendance",
-      path: "/dashboard/attendance-management",
-      icon: <BsClipboardCheck className="text-xl" />,
-    },
-    {
-      id: 8,
-      name: "Create Project",
-      path: "/dashboard/create-project",
-      icon: <FaFileCirclePlus className="text-xl" />,
-    },
-    {
-      id: 9,
-      name: "Add New User",
-      path: "/dashboard/create",
-      icon: <ImUserPlus className="text-xl" />,
-    },
+    { id: 6, name: "Attendance", path: "/dashboard/attendance-management", icon: <BsClipboardCheck className="text-xl" /> },
+    { id: 8, name: "Create Project", path: "/dashboard/create-project", icon: <FaFileCirclePlus className="text-xl" /> },
+    { id: 9, name: "Add New User", path: "/dashboard/create", icon: <ImUserPlus className="text-xl" /> },
   ];
 
   // Build menu list based on user role
@@ -125,14 +79,12 @@ function SideNav() {
     );
   }
 
-  // Sign-out handler
-  // const handleSignOut = () => {
-  //   localStorage.removeItem("token");
-  //   localStorage.removeItem("userRole");
-  //   document.cookie =
-  //     "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; secure; samesite=strict";
-  //   router.push("/login");
-  // };
+  // Close sidebar on mobile after menu click
+  const handleMenuClick = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsMobileSidebarOpen(false);
+    }
+  };
 
   return (
     <nav className="h-full min-h-screen flex flex-col p-4 border bg-white dark:bg-slate-950 shadow-sm overflow-hidden">
@@ -147,9 +99,7 @@ function SideNav() {
             height={40}
             priority
           />
-          <h1 className="text-xl font-bold text-gray-800 dark:text-white">
-            Circuit
-          </h1>
+          <h1 className="text-xl font-bold text-gray-800 dark:text-white">Circuit</h1>
         </div>
       </div>
 
@@ -159,29 +109,14 @@ function SideNav() {
           <Link
             key={menu.id}
             href={menu.path}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors
-              text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-slate-800
-              ${path === menu.path
-                ? "bg-blue-500 text-white hover:bg-blue-600"
-                : ""}`}
+            onClick={handleMenuClick}
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-slate-800 ${path === menu.path ? "bg-blue-500 text-white hover:bg-blue-600" : ""}`}
           >
             <span className="text-2xl">{menu.icon}</span>
-            <span className="font-medium text-sm md:text-base">
-              {menu.name}
-            </span>
+            <span className="font-medium text-sm md:text-base">{menu.name}</span>
           </Link>
         ))}
       </div>
-
-      {/* Sign out */}
-      {/* <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700"> */}
-        {/* <Button
-          onClick={handleSignOut}
-          className="w-full py-2 px-4 text-white bg-red-600 hover:bg-red-700 rounded-lg focus:outline-none"
-        >
-          Sign Out
-        </Button> */}
-      {/* </div> */}
     </nav>
   );
 }
