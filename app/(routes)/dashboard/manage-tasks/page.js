@@ -181,7 +181,7 @@ useEffect(() => {
             <p className="text-center text-gray-500">No tasks found.</p>
           ) : (
             <table className="w-full table-auto border border-gray-300 rounded">
-              <thead className="bg-gray-100">
+              <thead className="bg-gray-100 dark:bg-gray-900 ">
                 <tr>
                   <th className="p-2 text-left">Title</th>
                   <th className="p-2 text-left">Manager</th>
@@ -192,7 +192,7 @@ useEffect(() => {
               </thead>
               <tbody>
                 {tasks.map((task) => (
-                  <tr key={task._id} className="hover:bg-gray-50">
+                  <tr key={task._id} className="hover:bg-gray-50 dark:bg-gray-700 ">
                     <td className="p-2">{task.title}</td>
                     <td className="p-2">{task.manager?.email || "-"}</td>
                     <td className="p-2">
@@ -221,9 +221,9 @@ useEffect(() => {
       {activeTab === "tickets" && (
         <>
          {tickets.map((ticket) => (
-  <div key={ticket._id || ticket.id} className="border p-4 mb-4 rounded bg-gray-50">
+  <div key={ticket._id || ticket.id} className="border p-4 mb-4 rounded bg-gray-50 dark:bg-gray-900 ">
     <h3 className="font-semibold text-lg">{ticket.issueTitle}</h3>
-    <p className="italic text-sm mb-2">Status: {ticket.status}</p>
+    <p className="italic text-sm mb-2 ">Status: <span className="dark:text-green-400">{ticket.status}</span></p>
     <p>Description : {ticket.description}</p>
     <p>
       Assigned to:{" "}

@@ -244,7 +244,7 @@ export default function AttendanceManagementPage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-200 text-sm">
               <thead>
-                <tr className="bg-gray-100">
+                <tr className="bg-gray-100 dark:bg-gray-900 ">
                   <th className="border p-2">User</th>
                   <th className="border p-2">Date</th>
                    <th className="border p-2">Work Mode</th> {/* <-- New Column */}
