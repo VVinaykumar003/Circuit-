@@ -38,16 +38,6 @@ function SideNav() {
     fetchSession();
   }, [router]);
 
-  // const handleSignOut = async () => {
-  //   try {
-  //     await fetch("/api/auth/logout", { method: "POST" });
-  //     router.push("/login");
-  //   } catch (error) {
-  //     console.error("Sign out error:", error);
-  //   }
-  // };
-
-  // 📌 Base menu (common for all)
   const baseMenu = [
 
     {
@@ -115,31 +105,14 @@ function SideNav() {
   },
   ];
 
-  // // 📌 Admin-only menu
-  // const adminMenu = [
-  //   {
-  //     id: 10,
-  //     name: "User Management",
-  //     path: "/dashboard/signUp",
-  //     icon: <ImUserPlus className="text-xl" />,
-  //   },
-  // ];
-// 📌 Meeting menu
-const meetingMenu = [
-  {
-    id: 11,
-    name: "Join Meeting",
-    path: "/dashboard/meetings",
-    icon: <BsCalendarCheck className="text-xl" />,
-  },
-];
+
 
   // Build final menu depending on role
   let menuList = [...baseMenu];
 
-  if (userRole === "member") menuList = [...baseMenu, ...attendanceMenu, ...meetingMenu];
-  if (userRole === "manager") menuList = [...baseMenu,  ...attendanceMenu, ...managerMenu, ...meetingMenu];
-  if (userRole === "admin") menuList = [...baseMenu,  ...managerMenu, ...meetingMenu];
+  if (userRole === "member") menuList = [...baseMenu, ...attendanceMenu,];
+  if (userRole === "manager") menuList = [...baseMenu,  ...attendanceMenu, ...managerMenu,];
+  if (userRole === "admin") menuList = [...baseMenu,  ...managerMenu, ];
 
   if (loading) {
     return (
