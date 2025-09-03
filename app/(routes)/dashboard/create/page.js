@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect } from "react";
 import { toast, ToastContainer } from "react-toastify";
@@ -14,7 +14,7 @@ export default function CreateUser() {
     email: "",
     password: "",
     confirmPassword: "",
-    profileImgUrl: "",
+    profileImgUrl: "/user.png", // Initialize with fallback image
     name: "",
     gender: "",
     role: "member",
@@ -36,7 +36,6 @@ export default function CreateUser() {
         const res = await fetch("/api/auth/session");
         if (res.ok) {
           const user = await res.json();
-
           setCurrentUserRole(user.role);
         } else {
           router.push("/login");
@@ -54,56 +53,42 @@ export default function CreateUser() {
   // Handle input and select changes, with phone number formatting
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    // if (name === "phoneNumber") {
-    //   const digitsOnly = value.replace(/\D/g, "");
-    //   let formatted = digitsOnly;
-      // if (!formatted.startsWith("91")) {
-      //   formatted = `91${formatted}`;
-      // }
-
-      // setFormData((prev) => ({ ...prev, phoneNumber: formatted }));
-
-        if (name === "phoneNumber") {
-  const digitsOnly = value.replace(/\D/g, "");
-  setFormData((prev) => ({ ...prev, phoneNumber: digitsOnly }));
-}
-     else {
+    if (name === "phoneNumber") {
+      const digitsOnly = value.replace(/\D/g, "");
+      setFormData((prev) => ({ ...prev, phoneNumber: digitsOnly }));
+    } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-
-
-
   // Profile image upload handler calling your custom backend API (/api/upload)
- const handleFileChange = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  setLoadingBtn(true);
-  setError("");
+    setLoadingBtn(true);
+    setError("");
 
-  const data = new FormData();
-  data.append("file", file);
+    const data = new FormData();
+    data.append("file", file);
 
-  try {
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      body: data,
-    });
-    if (!res.ok) throw new Error("Upload failed");
-    const uploadData = await res.json();
-    setFormData((prev) => ({
-      ...prev,
-      profileImgUrl: uploadData.url, // Cloudinary URL
-    }));
-  } catch (err) {
-    setError(err.message);
-  } finally {
-    setLoadingBtn(false);
-  }
-};
-
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: data,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const uploadData = await res.json();
+      setFormData((prev) => ({
+        ...prev,
+        profileImgUrl: uploadData.url, // Cloudinary URL
+      }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingBtn(false);
+    }
+  };
 
   // Handle form submission to create a new user via your backend API (/api/admin)
   const handleSignup = async (e) => {
@@ -130,22 +115,12 @@ export default function CreateUser() {
         return;
       }
     }
-    if (!formData.profileImgUrl) {
-      setError("Please upload a profile image");
+
+    if (formData.phoneNumber.length !== 10) {
+      setError("Only 10 digit mobile numbers are allowed");
       setLoadingBtn(false);
       return;
     }
-   
-    // if (formData.phoneNumber.length !== 12) {
-    //   setError("Only 10 digit mobile numbers are allowed");
-    //   setLoadingBtn(false);
-    //   return;
-    // }
-    if (formData.phoneNumber.length !== 10) {
-  setError("Only 10 digit mobile numbers are allowed");
-  setLoadingBtn(false);
-  return;
-}
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
@@ -170,10 +145,10 @@ export default function CreateUser() {
           email: "",
           password: "",
           confirmPassword: "",
-          profileImgUrl: "",
+          profileImgUrl: "/user.png", // Reset to default image
           name: "",
           gender: currentUserRole === "admin" ? "" : formData.gender,
-          role: currentUserRole === "admin" ? "member" : "",
+          role: currentUserRole === "admin" ? "member" : formData.role,
           phoneNumber: "",
           dateOfBirth: "",
           profileState: "active",
@@ -195,20 +170,15 @@ export default function CreateUser() {
       <h2 className="text-2xl font-bold mb-4 text-center">Create New User</h2>
       <form onSubmit={handleSignup}>
         <div className="flex flex-col md:flex-row justify-center gap-2 md:gap-3 lg:gap-8 w-full mb-4">
-          {formData.profileImgUrl ? (
-            <div className="w-20 h-20 rounded-full border border-slate-400 overflow-hidden">
-              <Image
-                src={formData.profileImgUrl}
-                alt="Profile"
-                width={96}
-                height={96}
-                className="object-cover"
-              />
-            </div>
-          ) : (
-            <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700"><img src='/user.png'     className="object-cover w-20 h-20"/></div>
-          )}
-
+          <div className="w-20 h-20 rounded-full border border-slate-400 overflow-hidden">
+            <Image
+              src={formData.profileImgUrl}
+              alt="Profile"
+              width={96}
+              height={96}
+              className="object-cover w-full h-full"
+            />
+          </div>
           <div className="flex flex-col justify-center">
             <Label
               htmlFor="profileImg"
@@ -223,17 +193,13 @@ export default function CreateUser() {
               accept="image/*"
               onChange={handleFileChange}
               className="block cursor-pointer text-gray-600 dark:text-gray-300"
-              required={!formData.profileImgUrl}
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <Label
-              htmlFor="name"
-              className="block mb-1 text-gray-600 dark:text-gray-300"
-            >
+            <Label htmlFor="name" className="block mb-1 text-gray-600 dark:text-gray-300">
               Name
             </Label>
             <Input
@@ -248,10 +214,7 @@ export default function CreateUser() {
             />
           </div>
           <div>
-            <Label
-              htmlFor="email"
-              className="block mb-1 text-gray-600 dark:text-gray-300"
-            >
+            <Label htmlFor="email" className="block mb-1 text-gray-600 dark:text-gray-300">
               Email
             </Label>
             <Input
@@ -267,10 +230,7 @@ export default function CreateUser() {
             />
           </div>
           <div>
-            <Label
-              htmlFor="password"
-              className="block mb-1 text-gray-600 dark:text-gray-300"
-            >
+            <Label htmlFor="password" className="block mb-1 text-gray-600 dark:text-gray-300">
               Password
             </Label>
             <Input
@@ -286,10 +246,7 @@ export default function CreateUser() {
             />
           </div>
           <div>
-            <Label
-              htmlFor="confirmPassword"
-              className="block mb-1 text-gray-600 dark:text-gray-300"
-            >
+            <Label htmlFor="confirmPassword" className="block mb-1 text-gray-600 dark:text-gray-300">
               Confirm Password
             </Label>
             <Input
@@ -307,10 +264,7 @@ export default function CreateUser() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <Label
-              htmlFor="gender"
-              className="block mb-1 text-gray-600 dark:text-gray-300"
-            >
+            <Label htmlFor="gender" className="block mb-1 text-gray-600 dark:text-gray-300">
               Gender
             </Label>
             <select
@@ -328,10 +282,7 @@ export default function CreateUser() {
             </select>
           </div>
           <div>
-            <Label
-              htmlFor="dateOfBirth"
-              className="block mb-1 text-gray-600 dark:text-gray-300"
-            >
+            <Label htmlFor="dateOfBirth" className="block mb-1 text-gray-600 dark:text-gray-300">
               Date of Birth
             </Label>
             <Input
@@ -348,10 +299,7 @@ export default function CreateUser() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
           <div>
-            <Label
-              htmlFor="phoneNumber"
-              className="block mb-1 text-gray-600 dark:text-gray-300"
-            >
+            <Label htmlFor="phoneNumber" className="block mb-1 text-gray-600 dark:text-gray-300">
               Phone Number
             </Label>
             <Input
@@ -366,10 +314,7 @@ export default function CreateUser() {
             />
           </div>
           <div>
-            <Label
-              htmlFor="role"
-              className="block mb-1 text-gray-600 dark:text-gray-300"
-            >
+            <Label htmlFor="role" className="block mb-1 text-gray-600 dark:text-gray-300">
               Role
             </Label>
             <select
@@ -382,16 +327,11 @@ export default function CreateUser() {
             >
               <option value="member">Member</option>
               <option value="manager">Manager</option>
-              {currentUserRole === "admin" && (
-                <option value="admin">Admin</option>
-              )}
+              {currentUserRole === "admin" && <option value="admin">Admin</option>}
             </select>
           </div>
           <div>
-            <Label
-              htmlFor="profileState"
-              className="block mb-1 text-gray-600 dark:text-gray-300"
-            >
+            <Label htmlFor="profileState" className="block mb-1 text-gray-600 dark:text-gray-300">
               Profile State
             </Label>
             <select

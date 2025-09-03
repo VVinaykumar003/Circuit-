@@ -10,9 +10,6 @@ import { FaFileCirclePlus, FaCopy } from "react-icons/fa6";
 import { RiFolderChartFill } from "react-icons/ri";
 import { HiMiniUserGroup } from "react-icons/hi2";
 import { BsCalendarCheck, BsClipboardCheck } from "react-icons/bs";
-// import { setSession } from "@/app/api/auth/session/route";
-// import { setSession, deleteSession } from "@/app/api/auth/session/route"; // Adjust the import path as necessary
-//F:\Projects\Circuit\TaskZ\app\(routes) F:\Projects\Circuit\TaskZ\app\(routes)
 
 function SideNav() {
   const [userRole, setUserRole] = useState(null);
@@ -41,23 +38,18 @@ function SideNav() {
     fetchSession();
   }, [router]);
 
-  const handleSignOut = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      router.push("/login");
-    } catch (error) {
-      console.error("Sign out error:", error);
-    }
-  };
+  // const handleSignOut = async () => {
+  //   try {
+  //     await fetch("/api/auth/logout", { method: "POST" });
+  //     router.push("/login");
+  //   } catch (error) {
+  //     console.error("Sign out error:", error);
+  //   }
+  // };
 
   // 📌 Base menu (common for all)
   const baseMenu = [
-    {
-      id: 1,
-      name: "My Projects",
-      path: "/dashboard",
-      icon: <FaCopy className="text-xl" />,
-    },
+
     {
       id: 2,
       name: "All Projects",
@@ -92,13 +84,19 @@ function SideNav() {
       path: "/dashboard/attendance",
       icon: <BsCalendarCheck className="text-xl" />,
     },
+        {
+      id: 1,
+      name: "My Projects",
+      path: "/dashboard",
+      icon: <FaCopy className="text-xl" />,
+    },
   ];
 
   // 📌 Manager-only menu
   const managerMenu = [
   {
     id: 6,
-    name: "Attendance Management",
+    name: "Attendance",
     path: "/dashboard/attendance-management",
     icon: <BsClipboardCheck className="text-xl" />,
   },
@@ -117,22 +115,31 @@ function SideNav() {
   },
   ];
 
-  // 📌 Admin-only menu
-  const adminMenu = [
-    {
-      id: 10,
-      name: "User Management",
-      path: "/dashboard/signUp",
-      icon: <ImUserPlus className="text-xl" />,
-    },
-  ];
+  // // 📌 Admin-only menu
+  // const adminMenu = [
+  //   {
+  //     id: 10,
+  //     name: "User Management",
+  //     path: "/dashboard/signUp",
+  //     icon: <ImUserPlus className="text-xl" />,
+  //   },
+  // ];
+// 📌 Meeting menu
+const meetingMenu = [
+  {
+    id: 11,
+    name: "Join Meeting",
+    path: "/dashboard/meetings",
+    icon: <BsCalendarCheck className="text-xl" />,
+  },
+];
 
   // Build final menu depending on role
   let menuList = [...baseMenu];
 
-  if (userRole === "member") menuList = [...baseMenu, ...attendanceMenu];
-  if (userRole === "manager") menuList = [...baseMenu,  ...attendanceMenu, ...managerMenu];
-  if (userRole === "admin") menuList = [...baseMenu,  ...managerMenu, ...adminMenu];
+  if (userRole === "member") menuList = [...baseMenu, ...attendanceMenu, ...meetingMenu];
+  if (userRole === "manager") menuList = [...baseMenu,  ...attendanceMenu, ...managerMenu, ...meetingMenu];
+  if (userRole === "admin") menuList = [...baseMenu,  ...managerMenu, ...meetingMenu];
 
   if (loading) {
     return (
@@ -182,12 +189,12 @@ function SideNav() {
 
       {/* Sign Out Section */}
       <div className="flex justify-center items-center">
-        <Button
+        {/* <Button
           onClick={handleSignOut}
           className="w-full py-2 px-4 text-white bg-red-600 hover:bg-red-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
         >
           Sign Out
-        </Button>
+        </Button> */}
       </div>
     </div>
   );

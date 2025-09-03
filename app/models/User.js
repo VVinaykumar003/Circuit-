@@ -14,13 +14,13 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  confirmPassword: {
-    type: String,
-    required: false,
-  },
+  // confirmPassword: {
+  //   type: String,
+  //   required: true,
+  // },
   profileImg: {
     type: Buffer, // storing image as binary, can also store URL only if preferred
-    required: false,
+    default: null,
   },
   profileImgUrl: {
     type: String,
@@ -34,7 +34,7 @@ const userSchema = new mongoose.Schema({
   gender: {
     type: String,
     enum: ['male', 'female', 'other', 'prefer not to say'],
-    default: 'prefer not to say',
+    default: 'male',
   },
   role: {
     type: String,

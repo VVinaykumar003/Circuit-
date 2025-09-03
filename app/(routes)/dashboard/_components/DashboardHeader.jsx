@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -13,7 +13,7 @@ import axios from "axios";
 function DashboardHeader() {
   const [userData, setUserData] = useState(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const router = useRouter(); 
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchSession() {
@@ -23,9 +23,7 @@ function DashboardHeader() {
           setUserData(null);
           return;
         }
-        const data = res.data;
-       
-        setUserData(data);
+        setUserData(res.data);
       } catch (error) {
         setUserData(null);
       }
@@ -35,16 +33,12 @@ function DashboardHeader() {
 
   const handleSignOut = async () => {
     try {
-     const res = await axios.get("/api/logout");
-      if (res.status === 200) {
+      await axios.post("/api/auth/logout"); // <-- Use POST, consistent endpoint
       setUserData(null);
       router.push("/login");
-      }
-
-   
-      
     } catch (error) {
-      console.error("Error signing out:", error.message);
+      console.error("Sign out error:", error);
+      router.push("/login"); // <-- Always redirect, even if logout fails
     }
   };
 
