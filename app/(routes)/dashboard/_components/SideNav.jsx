@@ -6,13 +6,11 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { MdNotifications } from "react-icons/md";
 import { ImUserPlus } from "react-icons/im";
-import { FaFileCirclePlus } from "react-icons/fa6";
+import { FaFileCirclePlus, FaCopy } from "react-icons/fa6";
 import { RiFolderChartFill } from "react-icons/ri";
-import { FaCopy } from "react-icons/fa";
 import { HiMiniUserGroup } from "react-icons/hi2";
-// import { setSession } from "@/app/api/auth/session/route";
-// import { setSession, deleteSession } from "@/app/api/auth/session/route"; // Adjust the import path as necessary
-//F:\Projects\Circuit\TaskZ\app\(routes) F:\Projects\Circuit\TaskZ\app\(routes)
+import { BsCalendarCheck, BsClipboardCheck } from "react-icons/bs";
+
 function SideNav() {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,9 +26,8 @@ function SideNav() {
           router.push("/login");
           return;
         }
-
         const data = await res.json();
-        setUserRole(data.role);
+        setUserRole(data.role); // "member" | "manager" | "admin"
       } catch (error) {
         setUserRole(null);
         router.push("/login");
@@ -41,61 +38,81 @@ function SideNav() {
     fetchSession();
   }, [router]);
 
- const handleSignOut = async () => {
-  try {
-    await fetch("/api/auth/logout", { method: "POST" }); // ✅ Use GET
-    router.push("/login");
-  } catch (error) {
-    console.error("Sign out error:", error);
-  }
-};
+  const baseMenu = [
 
-  // Define the menu list
-  const menuList = [
-    {
-      id: 1,
-      name: "My Projects",
-      path: "/dashboard",
-      icon: <FaCopy className="text-xl" />,
-    },
     {
       id: 2,
       name: "All Projects",
       path: "/dashboard/projects",
       icon: <RiFolderChartFill className="text-xl" />,
     },
-    userRole !== "member" && {
-      id: 3,
-      name: "Add New User",
-      path: "/dashboard/create",
-      icon: <ImUserPlus className="text-xl" />,
-    },
-    userRole !== "member" && {
-      id: 4,
-      name: "Create Project",
-      path: "/dashboard/create-project",
-      icon: <FaFileCirclePlus className="text-xl" />,
-    },
     {
-      id: 5,
+      id: 3,
       name: "Notifications",
       path: "/dashboard/notifications",
       icon: <MdNotifications className="text-xl" />,
     },
     {
-      id: 6,
+      id: 4,
       name: "Members",
       path: "/dashboard/profiles",
       icon: <HiMiniUserGroup className="text-xl" />,
     },
-      // 🔹 New Manage Tasks link (admin + manager only)
-  {
+      {
     id: 7,
     name: "Manage Tasks",
     path: "/dashboard/manage-tasks",
     icon: <RiFolderChartFill className="text-xl" />,
   },
-  ].filter(Boolean); // Remove falsy (non-admin links for member)
+  ];
+
+  // 📌 Only for member + manager
+  const attendanceMenu = [
+    {
+      id: 5,
+      name: "Mark Attendance",
+      path: "/dashboard/attendance",
+      icon: <BsCalendarCheck className="text-xl" />,
+    },
+        {
+      id: 1,
+      name: "My Projects",
+      path: "/dashboard",
+      icon: <FaCopy className="text-xl" />,
+    },
+  ];
+
+  // 📌 Manager-only menu
+  const managerMenu = [
+  {
+    id: 6,
+    name: "Attendance",
+    path: "/dashboard/attendance-management",
+    icon: <BsClipboardCheck className="text-xl" />,
+  },
+
+  {
+    id: 8,
+    name: "Create Project",
+    path: "/dashboard/create-project",
+    icon: <FaFileCirclePlus className="text-xl" />,
+  },
+  {
+    id: 9,
+    name: "Add New User",
+    path: "/dashboard/create",
+    icon: <ImUserPlus className="text-xl" />,
+  },
+  ];
+
+
+
+  // Build final menu depending on role
+  let menuList = [...baseMenu];
+
+  if (userRole === "member") menuList = [...baseMenu, ...attendanceMenu,];
+  if (userRole === "manager") menuList = [...baseMenu,  ...attendanceMenu, ...managerMenu,];
+  if (userRole === "admin") menuList = [...baseMenu,  ...managerMenu, ];
 
   if (loading) {
     return (
@@ -126,6 +143,7 @@ function SideNav() {
           </Link>
         </div>
       </div>
+
       {/* Menu Section */}
       <div className="flex-grow flex flex-col justify-center">
         {menuList.map((menu) => (
@@ -141,14 +159,15 @@ function SideNav() {
           </Link>
         ))}
       </div>
+
       {/* Sign Out Section */}
       <div className="flex justify-center items-center">
-        <Button
+        {/* <Button
           onClick={handleSignOut}
           className="w-full py-2 px-4 text-white bg-red-600 hover:bg-red-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
         >
           Sign Out
-        </Button>
+        </Button> */}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-"use client";
+'use client'
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -6,27 +6,42 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+
+function Info({ label, value }) {
+  return (
+    <div>
+      <p className="text-sm text-gray-500">{label}</p>
+      <p className="font-medium text-gray-800">{value || "N/A"}</p>
+    </div>
+  );
+}
 
 export default function UserProfile() {
   const { email } = useParams();
   const decodedEmail = decodeURIComponent(email);
   const router = useRouter();
-
   const [user, setUser] = useState(null);
-  const [admin, setAdmin] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [uploadingImg, setUploadingImg] = useState(false);
   const [form, setForm] = useState({
     name: "",
     phoneNumber: "",
     gender: "",
     profileState: "",
+    role: "",
+    profileImgUrl: "",
+    dateOfBirth: "",
   });
 
+  // Fetch user, current auth session, and projects
   useEffect(() => {
-    async function fetchUserAndAdmin() {
+    async function fetchData() {
       const token = localStorage.getItem("token");
       if (!token) {
         router.push("/login");
@@ -34,34 +49,48 @@ export default function UserProfile() {
       }
       setLoading(true);
       try {
-        // Fetch user data with authorization header
-        const res = await fetch(`/api/user/${encodeURIComponent(decodedEmail)}`, {
+        // Fetch user being viewed
+        const userRes = await fetch(
+          `/api/user/${encodeURIComponent(decodedEmail)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!userRes.ok) throw new Error("User not found");
+        const userData = await userRes.json();
+
+        // Fetch current user (for permission checks)
+        const sessionRes = await fetch("/api/auth/session", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const data = await res.json();
-        // console.log(data)
-        if (!res.ok) throw new Error(data.error || "User not found");
+        if (!sessionRes.ok) throw new Error("Not authenticated");
+        const sessionData = await sessionRes.json();
 
-        // Fetch current user session (admin info) also with auth header
-        const userRes = await fetch("/api/auth/session", {
+        // Fetch projects
+        const projectsRes = await fetch("/api/projects", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!userRes.ok) throw new Error("Not authenticated");
-        const adminData = await userRes.json();
+        if (!projectsRes.ok) throw new Error("Failed to fetch projects");
+        const projectsData = await projectsRes.json();
 
-        setAdmin(adminData);
-        setUser(data.user);
+        setCurrentUser(sessionData);
+        setUser(userData);
         setForm({
-          name: data.name || "",
-          phoneNumber: data.phoneNumber || "",
-          gender: data.gender || "",
-          profileState: data.profileState || "",
+          name: userData.name || "",
+          phoneNumber: userData.phoneNumber || "",
+          gender: userData.gender || "",
+          profileState: userData.profileState || "",
+          role: userData.role || "member",
+          profileImgUrl: userData.profileImgUrl || "",
+          dateOfBirth: userData.dateOfBirth || "",
         });
-        setError("");
+        setProjects(
+          projectsData.map((p) => ({
+            ...p,
+            userRoleInProject:
+              p.participants?.find((u) => u.email === decodedEmail)?.role ?? "",
+          }))
+        );
       } catch (err) {
-        setError(err.message || "User not found");
-        setUser(null);
-        toast.error(err.message || "Unauthorized");
+        setError(err.message);
         if (err.message?.toLowerCase().includes("unauthorized")) {
           router.push("/login");
         }
@@ -69,105 +98,45 @@ export default function UserProfile() {
         setLoading(false);
       }
     }
-    fetchUserAndAdmin();
+    fetchData();
   }, [decodedEmail, router]);
 
-  // useEffect(() => {
-  //   async function fetchProjects() {
-  //     const token = localStorage.getItem("token");
-  //     // console.log("Token used for fetch:", localStorage.getItem("token"));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
 
-  //     if (!token) {
-  //       router.push("/login");
-  //       return;
-  //     }
-  //     try {
-  //       const res = await fetch("/api/projects", {
-  //         headers: { Authorization: `Bearer ${token}` },
-  //       });
-  //       if (!res.ok) throw new Error("Failed to fetch projects");
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  //       const allProjects = await res.json();
+    setUploadingImg(true);
+    setError("");
 
-  //       const userProjects = allProjects
-  //         .map((project) => {
-  //           const participant = project.participants?.find(
-  //             (p) => p.email === decodedEmail
-  //           );
-
-  //           if (participant) {
-  //             return {
-  //               ...project,
-  //               userRoleInProject: participant.role,
-  //               userResponsibility: participant.responsibility,
-  //             };
-  //           }
-  //           return null;
-  //         })
-  //         .filter(Boolean);
-
-  //       setProjects(userProjects);
-  //     } catch (err) {
-  //       console.error("Projects fetch error:", err.message);
-  //       toast.error("Failed to load projects");
-  //       if (err.message?.toLowerCase().includes("unauthorized")) {
-  //         router.push("/login");
-  //       }
-  //     }
-  //   }
-
-  //   if (decodedEmail) fetchProjects();
-  // }, [decodedEmail, router]);
-
-   useEffect(() => {
-  const checkAuthAndLoadProjects = async () => {
-    setLoading(true); // Set loading to true when starting
     try {
-      // Get token from localStorage
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        console.error('No token found');
-        router.push('/login');
-        return;
-      }
-  
-      const res = await fetch('/api/projects', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
       });
-  
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'Failed to fetch projects');
-      }
-  
-      const data = await res.json();
-      console.log(data)
-      setProjects(data);
-      console.log("Projects : " ,projects)
-      
+      if (!res.ok) throw new Error("Upload failed");
+
+      const { url } = await res.json();
+      setUser((prev) => ({ ...prev, profileImgUrl: url }));
+      setForm((prev) => ({ ...prev, profileImgUrl: url }));
+      toast.success("Image uploaded!");
     } catch (err) {
-      console.error('Error fetching projects:', err);
-      if (err.message === 'Invalid token') {
-        router.push('/login');
-      }
-      setError(err.message);
+      toast.error("Image upload failed: " + err.message);
     } finally {
-      setLoading(false); // Set loading to false when done, regardless of success or failure
+      setUploadingImg(false);
     }
   };
-  
-      checkAuthAndLoadProjects();
-    }, [decodedEmail,router]);
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleDateChange = (e) => {
+    setForm((prev) => ({ ...prev, dateOfBirth: e.target.value }));
   };
-
-
-  
 
   const handleUpdate = async () => {
     const token = localStorage.getItem("token");
@@ -177,50 +146,72 @@ export default function UserProfile() {
       return;
     }
     try {
+      // Remove undefined/empty fields to avoid overwriting with blank values
+      const submittedData = Object.fromEntries(
+        Object.entries(form).filter(([_, v]) => v !== undefined && v !== "")
+      );
+
       const res = await fetch(`/api/user/${encodeURIComponent(decodedEmail)}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(submittedData),
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      setUser(data);
-
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Update failed");
+      }
+      const updatedUser = await res.json();
+      setUser(updatedUser);
       setForm({
-        name: data.name || "",
-        phoneNumber: data.phoneNumber || "",
-        gender: data.gender || "",
-        profileState: data.profileState || "",
+        name: updatedUser.name || "",
+        phoneNumber: updatedUser.phoneNumber || "",
+        gender: updatedUser.gender || "",
+        profileState: updatedUser.profileState || "",
+        role: updatedUser.role || "member",
+        profileImgUrl: updatedUser.profileImgUrl || "",
+        dateOfBirth: updatedUser.dateOfBirth || "",
       });
-
       setIsEditing(false);
-      toast.success("Profile updated successfully!");
+      toast.success("Profile updated!");
     } catch (err) {
       toast.error("Update failed: " + err.message);
     }
   };
 
-  if (loading) return <div className="p-8 text-lg">Loading user profile...</div>;
+  if (loading) return <div className="p-8 text-lg">Loading...</div>;
   if (error) return <div className="p-8 text-red-600">Error: {error}</div>;
   if (!user) return <div className="p-8">User not found.</div>;
 
   return (
     <div className="p-6 sm:p-10">
-      <Card className="max-w-3xl mx-auto shadow-lg border rounded-2xl overflow-hidden">
-        {/* Header */}
+      <Card className="max-w-3xl mx-auto shadow-lg rounded-2xl">
         <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-          <div className="flex items-center space-x-4">
-            <img
-              src={user.profileImgUrl || "/user.png"}
-              alt="Profile"
-              className="w-20 h-20 rounded-full border-4 border-white shadow-md object-cover"
-              onError={(e) => (e.currentTarget.src = "/user.png")}
-            />
+          <div className="flex flex-wrap items-center space-x-4">
+            <div className="relative">
+              <img
+                src={user.profileImgUrl || "/user.png"}
+                alt="Profile"
+                className="w-20 h-20 rounded-full border-4 border-white shadow-md object-cover"
+                onError={(e) => (e.currentTarget.src = "/user.png")}
+              />
+              {isEditing && (
+                <div className="mt-2 w-full">
+                  <Label className="block mb-1">
+                    <span className="sr-only">Change Profile Image</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="block text-sm file:mr-2 file:px-2 file:py-1 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
+                      disabled={uploadingImg}
+                    />
+                  </Label>
+                </div>
+              )}
+            </div>
             <div>
               <h2 className="text-2xl font-bold">{user.name || "N/A"}</h2>
               <p className="text-gray-100">{user.email || "N/A"}</p>
@@ -231,34 +222,80 @@ export default function UserProfile() {
           </div>
         </CardHeader>
 
-        {/* Profile Details */}
         <CardContent className="p-6 space-y-6">
           {isEditing ? (
-            <div className="space-y-3">
-              <Input
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                placeholder="Name"
-              />
-              <Input
-                name="phoneNumber"
-                value={form.phoneNumber}
-                onChange={handleChange}
-                placeholder="Phone"
-              />
-              <Input
-                name="gender"
-                value={form.gender}
-                onChange={handleChange}
-                placeholder="Gender"
-              />
-              <Input
-                name="profileState"
-                value={form.profileState}
-                onChange={handleChange}
-                placeholder="Profile State"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Name</Label>
+                <Input
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Name"
+                />
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <Input
+                  name="phoneNumber"
+                  value={form.phoneNumber}
+                  onChange={handleChange}
+                  placeholder="Phone"
+                />
+              </div>
+              <div>
+                <Label>Gender</Label>
+                <Select
+                  value={form.gender}
+                  onValueChange={(value) =>
+                    setForm((prev) => ({ ...prev, gender: value }))
+                  }
+                >
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                  <option value="prefer not to say">Prefer not to say</option>
+                </Select>
+              </div>
+              <div>
+                <Label>Profile State</Label>
+                <Select
+                  value={form.profileState}
+                  onValueChange={(value) =>
+                    setForm((prev) => ({ ...prev, profileState: value }))
+                  }
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="banned">Banned</option>
+                </Select>
+              </div>
+              <div>
+                <Label>Date of Birth</Label>
+                <Input
+                  type="date"
+                  name="dateOfBirth"
+                  value={form.dateOfBirth}
+                  onChange={handleDateChange}
+                />
+              </div>
+              {(currentUser?.role === "admin" &&
+                currentUser?.email !== user.email) && (
+                <div>
+                  <Label>Role</Label>
+                  <Select
+                    value={form.role}
+                    onValueChange={(value) =>
+                      setForm((prev) => ({ ...prev, role: value }))
+                    }
+                  >
+                    <option value="member">Member</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                  </Select>
+                </div>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -273,6 +310,7 @@ export default function UserProfile() {
                 }
               />
               <Info label="Profile State" value={user.profileState || "N/A"} />
+              <Info label="Role" value={user.role || "N/A"} />
               <Info
                 label="Member Since"
                 value={
@@ -284,57 +322,54 @@ export default function UserProfile() {
             </div>
           )}
 
-          {/* Projects Section */}
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-4">Projects Involved</h3>
-            {projects.length > 0 ? (
+            {projects.filter((p) => p.userRoleInProject).length > 0 ? (
               <ul className="space-y-3">
-                {projects.map((project) => (
-                  <li
-                    key={project._id}
-                    className="p-4 border rounded-lg flex justify-between items-center bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition duration-200 ease-in-out"
-                  >
-                    <div>
-                      <p className="font-semibold text-gray-800 dark:text-gray-100 text-base">
-                        {project.projectName}
-                      </p>
-                      <p className="font-semibold text-gray-800 dark:text-gray-100 text-base">
-                        Project Domain:{" "} {project.projectDomain}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Status:{" "}
-                        <strong
-                          className={`${
-                            project.projectState === "completed"
-                              ? "text-green-600"
-                              : project.projectState === "ongoing"
-                              ? "text-blue-600"
-                              : "text-yellow-600"
-                          }`}
-                        >
-                          {project.projectState || "N/A"}
-                        </strong>
-                      </p>
-                    </div>
-                    <span
-                      className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
-                        project.userRoleInProject === "manager"
-                          ? "bg-green-100 text-green-700 border border-green-300"
-                          : "bg-blue-100 text-blue-700 border border-blue-300"
-                      }`}
+                {projects
+                  .filter((p) => p.userRoleInProject)
+                  .map((project) => (
+                    <li
+                      key={project._id}
+                      className="p-4 border rounded-lg flex justify-between items-center bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition"
                     >
-                      {project.roleInProject || "N/A"}
-                    </span>
-                  </li>
-                ))}
+                      <div>
+                        <p className="font-semibold text-gray-800 dark:text-gray-100">
+                          {project.projectName}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Status:{" "}
+                          <strong
+                            className={`${
+                              project.projectState === "completed"
+                                ? "text-green-600"
+                                : project.projectState === "ongoing"
+                                ? "text-blue-600"
+                                : "text-yellow-600"
+                            }`}
+                          >
+                            {project.projectState || "N/A"}
+                          </strong>
+                        </p>
+                      </div>
+                      <span
+                        className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
+                          project.userRoleInProject === "manager"
+                            ? "bg-green-100 text-green-700 border border-green-300"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
+                      >
+                        {project.userRoleInProject}
+                      </span>
+                    </li>
+                  ))}
               </ul>
             ) : (
-              <p className="text-gray-500 text-sm italic">No projects assigned.</p>
+              <p className="text-gray-500 italic">No projects assigned.</p>
             )}
           </div>
         </CardContent>
 
-        {/* Footer */}
         <CardFooter className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => router.back()}>
             Go Back
@@ -344,25 +379,27 @@ export default function UserProfile() {
               <Button variant="outline" onClick={() => setIsEditing(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleUpdate}>Save</Button>
+              <Button onClick={handleUpdate} disabled={uploadingImg}>
+                {uploadingImg ? (
+                  <span className="flex items-center gap-2">
+                    <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-r-transparent rounded-full"></span>
+                    Saving...
+                  </span>
+                ) : (
+                  "Save"
+                )}
+              </Button>
             </>
           ) : (
-            (admin?.role === "admin" || admin?.role === "manager") && (
+            (currentUser?.email === user.email ||
+              currentUser?.role === "admin" ||
+              currentUser?.role === "manager") && (
               <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
             )
           )}
         </CardFooter>
       </Card>
       <ToastContainer />
-    </div>
-  );
-}
-
-function Info({ label, value }) {
-  return (
-    <div>
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="font-medium text-gray-800">{value || "N/A"}</p>
     </div>
   );
 }

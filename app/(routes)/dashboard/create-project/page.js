@@ -1,6 +1,4 @@
-
-"use client";
-
+'use client';
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast, ToastContainer } from "react-toastify";
@@ -53,6 +51,8 @@ const CreateProject = () => {
   const [selectedUserData, setSelectedUserData] = useState(null);
   const [selectedResponsibility, setSelectedResponsibility] = useState("");
   const [emailOptions, setEmailOptions] = useState([]);
+  const [popoverOpen, setPopoverOpen] = useState(false); // Control popover visibility
+
   const router = useRouter();
 
   useEffect(() => {
@@ -105,8 +105,9 @@ const CreateProject = () => {
   const handleSelect = (email) => {
     const user = allUsers.find((u) => u.email === email);
     if (user) {
-      setSelectedUser(user.email);
+      setSelectedUser(email);
       setSelectedUserData(user);
+      setPopoverOpen(false); // Close popover on selection
     }
   };
 
@@ -115,7 +116,7 @@ const CreateProject = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAddParticipant = () => {
+const handleAddParticipant = () => {
   if (!selectedUser || !selectedRole || !selectedResponsibility) {
     toast.error("Please select all fields for the participant.");
     return;
@@ -124,18 +125,24 @@ const CreateProject = () => {
     toast.error("Participant already added.");
     return;
   }
-  setParticipants((prev) => [
-    ...prev,
+
+  setParticipants([
+    ...participants,
     {
-      userId: selectedUserData._id, // must be Mongo ObjectId
+      userId: selectedUserData._id,
       email: selectedUser,
       username: selectedUserData.name || "Unknown User",
-      roleInProject: selectedRole, // match schema name
+      roleInProject: selectedRole,
       responsibility: selectedResponsibility,
       profileImage: selectedUserData.profileImgUrl || "/user.png",
       userRole: selectedUserData.role || "No Role",
     },
   ]);
+
+  // Remove the selected user from dropdown options
+  setEmailOptions(emailOptions.filter(({ value }) => value !== selectedUser));
+
+  // Reset selections for next addition
   setSelectedUser(null);
   setSelectedUserData(null);
   setSelectedRole("");
@@ -160,7 +167,9 @@ const CreateProject = () => {
       return;
     }
 
-    const managerParticipant = participants.find((p) => p.roleInProject === "project-manager");
+    const managerParticipant = participants.find(
+      (p) => p.roleInProject === "project-manager"
+    );
     if (!managerParticipant) {
       alert("Please add a participant with role 'Project Manager'.");
       return;
@@ -177,7 +186,7 @@ const CreateProject = () => {
         username,
       })),
     };
-    //  console.log(projectData)
+
     const token = localStorage.getItem("token");
     if (!token) {
       toast.error("Authentication required.");
@@ -189,22 +198,18 @@ const CreateProject = () => {
     try {
       const res = await fetch("/api/projects", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(projectData),
       });
-
-      // console.log(res)
-
       if (!res.ok) {
         const data = await res.json();
         alert(`❌ API Error: ${data?.message || "Unknown error"}`);
         setLoading(false);
         return;
       }
-
       alert("✅ Project created successfully!");
       router.push("/dashboard/projects");
     } catch (err) {
@@ -254,8 +259,7 @@ const CreateProject = () => {
                   <select
                     id="projectState"
                     name="projectState"
-                    value={formData.projectState}
-                    onChange={handleInputChange}
+                    value="ongoing"
                     className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
                   >
                     <option value="">Select State</option>
@@ -317,6 +321,8 @@ const CreateProject = () => {
             </CardFooter>
           </Card>
         </TabsContent>
+
+        {/* Create Participants Tab */}
         <TabsContent value="create">
           <Card>
             <CardHeader>
@@ -335,155 +341,135 @@ const CreateProject = () => {
                 New Participants
               </Button>
 
-              {/* <form
+              <form
                 id="participantsForm"
                 className="hidden"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleAddParticipant();
-                }}
-              > */}
-               
-
-<form
-  id="participantsForm"
-  className="hidden"
-  onSubmit={(e) => {
-    e.preventDefault();
-    handleAddParticipant();
-  }}
->
-  <div className="space-y-4 w-full">
-    <div className="flex flex-col w-full lg:flex-row lg:items-center lg:justify-between lg:gap-4 gap-2">
-      <div className="flex w-full gap-4">
-        <div className="space-y-1 w-full pt-2 flex flex-col">
-          <Label htmlFor="selectUser">Select User</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={false}
-                className="justify-between w-full"
+                onSubmit={(e) => { e.preventDefault(); handleAddParticipant(); }}
               >
-                {selectedUser ? selectedUser : "Select user..."}
-                <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="p-0">
-              <Command>
-                <CommandInput
-                  placeholder="Search user..."
-                  className="h-9"
-                  onChange={(e) => {
-                    const val = e.target.value.toLowerCase();
-                    setEmailOptions(
-                      allUsers
-                        .filter((user) => user.email.toLowerCase().includes(val))
-                        .map((user) => ({ value: user.email, label: user.email }))
-                    );
-                  }}
-                />
-                <CommandList>
-                  <CommandEmpty>No user found.</CommandEmpty>
-                  <CommandGroup>
-                    {emailOptions.map((option) => (
-                      <CommandItem
-                        key={option.value}
-                        value={option.value}
-                        onSelect={handleSelect}
-                      >
-                        <div className="flex items-center space-x-4">
-                          <Image
-                            src={
-                              allUsers.find(
-                                (user) => user.email === option.value
-                              )?.profileImgUrl || "/user.png"
-                            }
-                            alt="User Avatar"
-                            width={40}
-                            height={40}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                          <div className="flex-1">
-                            <div className="font-semibold">
-                              {allUsers.find(
-                                (user) => user.email === option.value
-                              )?.name || "Unknown User"}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {allUsers.find(
-                                (user) => user.email === option.value
-                              )?.email || option.value}
-                              <br />
-                              {allUsers.find(
-                                (user) => user.email === option.value
-                              )?.role || "No Role"}
-                            </div>
-                          </div>
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
+                <div className="space-y-4 w-full">
+                  <div className="flex w-full lg:flex-row lg:items-center lg:justify-between lg:gap-4 gap-2">
+                    <div className="flex w-full gap-4">
+                      <div className="space-y-1 w-full pt-2 flex flex-col">
+                        <Label htmlFor="selectUser">Select User</Label>
+                        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={popoverOpen}
+                              className="justify-between w-full"
+                            >
+                              {selectedUser ? selectedUser : "Select user..."}
+                              <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="p-0">
+                            <Command>
+                              <CommandInput
+                                placeholder="Search user..."
+                                className="h-9"
+                                onChange={(e) => {
+                                  const val = e.target.value.toLowerCase();
+                                  setEmailOptions(
+                                    allUsers
+                                      .filter((user) => user.email.toLowerCase().includes(val))
+                                      .map((user) => ({ value: user.email, label: user.email }))
+                                  );
+                                }}
+                              />
+                              <CommandList>
+                                <CommandEmpty>No user found.</CommandEmpty>
+                                <CommandGroup>
+                                  {emailOptions.map((option) => (
+                                    <CommandItem
+                                      key={option.value}
+                                      value={option.value}
+                                      onSelect={handleSelect}
+                                    >
+                                      <div className="flex items-center space-x-4">
+                                        <Image
+                                          src={
+                                            allUsers.find((user) => user.email === option.value)
+                                              ?.profileImgUrl || "/user.png"
+                                          }
+                                          alt="User Avatar"
+                                          width={40}
+                                          height={40}
+                                          className="w-10 h-10 rounded-full object-cover"
+                                        />
+                                        <div className="flex-1">
+                                          <div className="font-semibold">
+                                            {allUsers.find((user) => user.email === option.value)
+                                              ?.name || "Unknown User"}
+                                          </div>
+                                          <div className="text-sm text-gray-600">
+                                            {option.value}
+                                            <br />
+                                            {allUsers.find((user) => user.email === option.value)
+                                              ?.role || "No Role"}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
 
-      <div className="flex w-full gap-4">
-        <div className="space-y-1 w-full">
-          <Label htmlFor="role">Role in project</Label>
-          <select
-            id="role"
-            value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value)}
-            className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
-          >
-            <option value="">Select Role in Project</option>
-            <option value="project-manager">Project Manager</option>
-            <option value="project-member">Project Member</option>
-            {/* Add other roleInProject options as needed */}
-          </select>
-        </div>
-      </div>
+                    <div className="flex w-full gap-4">
+                      <div className="space-y-1 w-full">
+                        <Label htmlFor="role">Role in project</Label>
+                        <select
+                          id="role"
+                          value={selectedRole}
+                          onChange={(e) => setSelectedRole(e.target.value)}
+                          className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
+                        >
+                          <option value="">Select Role in Project</option>
+                          <option value="project-manager">Project Manager</option>
+                          <option value="project-member">Project Member</option>
+                        </select>
+                      </div>
+                    </div>
 
-      <div className="flex w-full gap-4">
-        <div className="space-y-1 w-full">
-          <Label htmlFor="responsibility">Responsibility</Label>
-          <select
-            id="responsibility"
-            value={selectedResponsibility}
-            onChange={(e) => setSelectedResponsibility(e.target.value)}
-            className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
-          >
-            <option value="">Select Responsibility</option>
-            <option value="content">Content</option>
-            <option value="research">Research</option>
-            <option value="design">Design</option>
-            <option value="development">Development</option>
-            <option value="frontend">Frontend</option>
-            <option value="backend">Backend</option>
-            <option value="fullstack">Full Stack</option>
-            <option value="testing">Testing</option>
-            <option value="debugging">Debugging</option>
-            <option value="deployment">Deployment</option>
-            <option value="maintain">Maintain</option>
-          </select>
-        </div>
-      </div>
-    </div>
+                    <div className="flex w-full gap-4">
+                      <div className="space-y-1 w-full">
+                        <Label htmlFor="responsibility">Responsibility</Label>
+                        <select
+                          id="responsibility"
+                          value={selectedResponsibility}
+                          onChange={(e) => setSelectedResponsibility(e.target.value)}
+                          className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
+                        >
+                          <option value="">Select Responsibility</option>
+                          <option value="content">Content</option>
+                          <option value="research">Research</option>
+                          <option value="design">Design</option>
+                          <option value="development">Development</option>
+                          <option value="frontend">Frontend</option>
+                          <option value="backend">Backend</option>
+                          <option value="fullstack">Full Stack</option>
+                          <option value="testing">Testing</option>
+                          <option value="debugging">Debugging</option>
+                          <option value="deployment">Deployment</option>
+                          <option value="maintain">Maintain</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
 
-    <Button
-      type="submit"
-      disabled={!selectedUser || !selectedRole || !selectedResponsibility}
-    >
-      Add Participant
-    </Button>
-  </div>
-</form>
-
+                  <Button
+                    type="submit"
+                    disabled={!selectedUser || !selectedRole || !selectedResponsibility}
+                  >
+                    Add Participant
+                  </Button>
+                </div>
+              </form>
 
               <div className="mt-4">
                 <h3 className="text-xl font-semibold">Participants</h3>
