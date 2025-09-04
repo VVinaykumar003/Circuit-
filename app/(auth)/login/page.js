@@ -30,14 +30,27 @@ export default function LoginForm() {
     setError('');
 
     try {
-      const res = await axios.post('/api/auth/session', { email, password });
+      const res = await axios.post('/api/auth/session', {
+        email: email.trim().toLowerCase(),
+        password,
+      });
       if (!res.data.token) throw new Error('No token received from server');
       localStorage.setItem('token', res.data.token);
       document.cookie = `token=${res.data.token}; path=/; max-age=86400; secure; samesite=strict`;
       localStorage.setItem('userRole', res.data.role);
       router.push('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Invalid credentials or server error.');
+      const errorMessage = err.response?.data?.error || err.message || 'Login failed';
+      setError(errorMessage);
+
+      // Show toast with actionable message
+      if (err.response?.status === 403) {
+        toast.error(err.response.data.error || 'Your account is inactive or banned. Contact support.');
+      } else if (err.response?.status === 401) {
+        toast.error('Invalid email or password. Please try again.');
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -46,9 +59,7 @@ export default function LoginForm() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
       <div className="max-w-md w-full p-8 bg-white dark:bg-slate-800 rounded-lg shadow-xl">
-        <h2 className="text-3xl font-bold text-center mb-6 text-gray-800 dark:text-gray-200">
-          Login
-        </h2>
+        <h2 className="text-3xl font-bold text-center mb-6 text-gray-800 dark:text-gray-200">Login</h2>
 
         {error && (
           <p className="mb-4 text-center text-red-600 dark:text-red-400">
@@ -68,7 +79,6 @@ export default function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email"
               required
-              autoComplete="email"
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-900"
             />
           </div>
@@ -84,7 +94,6 @@ export default function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               required
-              autoComplete="current-password"
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-900"
             />
             <button
@@ -118,7 +127,7 @@ export default function LoginForm() {
           </Link>
         </p>
       </div>
-      <ToastContainer />
+      <ToastContainer position="top-center" autoClose={5000} />
     </div>
   );
 }
