@@ -15,9 +15,24 @@ export default function TaskDetailPage() {
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState(null);
 
-  async function handleDeleteTask(taskId) {
-    if (!confirm('Are you sure you want to delete this task?')) return;
+  // Custom delete confirmation: open modal
+  const openDeleteModal = (taskId) => {
+    setPendingDeleteTaskId(taskId);
+    setShowDeleteModal(true);
+  };
+
+  // Close delete modal
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setPendingDeleteTaskId(null);
+  };
+
+  // Execute delete after confirmation
+  async function handleDeleteTask() {
+    if (!pendingDeleteTaskId) return;
     setDeleting(true);
     const token = localStorage.getItem('token');
     if (!token) {
@@ -26,7 +41,7 @@ export default function TaskDetailPage() {
       return;
     }
     try {
-      const res = await fetch(`/api/tasks/${taskId}`, {
+      const res = await fetch(`/api/tasks/${pendingDeleteTaskId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -42,9 +57,11 @@ export default function TaskDetailPage() {
       console.error(err);
     } finally {
       setDeleting(false);
+      closeDeleteModal();
     }
   }
 
+  // Fetch task and user role
   useEffect(() => {
     async function fetchUserAndTask() {
       const token = localStorage.getItem('token');
@@ -69,15 +86,16 @@ export default function TaskDetailPage() {
     fetchUserAndTask();
   }, [taskId, router]);
 
+  // Save status (members only)
   async function handleStatusSave() {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/tasks/${taskId}/status`, {
         method: 'PATCH',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ status }),
       });
@@ -121,7 +139,7 @@ export default function TaskDetailPage() {
       {/* Status - editable for members */}
       {userRole === 'member' ? (
         <div className="mb-4">
-          <label 
+          <label
             htmlFor="status"
             className="block mb-1 font-medium text-gray-700 dark:text-gray-300"
           >
@@ -166,7 +184,7 @@ export default function TaskDetailPage() {
         </span>
       </p>
 
-      {/* Assignees - safe rendering */}
+      {/* Assignees */}
       <div className="mb-4">
         <h2 className="font-semibold text-xl mb-2 text-gray-700 dark:text-gray-300">Assignees:</h2>
         <ul className="space-y-1">
@@ -210,7 +228,7 @@ export default function TaskDetailPage() {
         </div>
       </div>
 
-      {/* Tickets - optional, safe rendering */}
+      {/* Tickets */}
       {task.tickets?.length > 0 && (
         <div className="mb-4">
           <h2 className="font-semibold text-xl mb-2 text-gray-700 dark:text-gray-300">Tickets:</h2>
@@ -245,13 +263,49 @@ export default function TaskDetailPage() {
             Edit
           </button>
           <button
-            onClick={() => handleDeleteTask(task._id)}
+            onClick={() => openDeleteModal(task._id)}
             disabled={deleting}
             className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg"
           >
             {deleting ? <Loader2 className="animate-spin mr-2 h-5 w-5 inline" /> : null}
             {deleting ? 'Deleting...' : 'Delete'}
           </button>
+        </div>
+      )}
+
+      {/* Creative Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="relative max-w-md w-full p-6 rounded-xl shadow-lg bg-white dark:bg-slate-800">
+            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+              Confirm Deletion
+            </h2>
+            <p className="text-gray-700 dark:text-gray-300 mb-6">
+              Are you sure you want to delete this task? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={closeDeleteModal}
+                className="px-4 py-2 font-medium rounded-lg border border-gray-300 dark:border-slate-600 bg-transparent hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-900 dark:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteTask}
+                disabled={deleting}
+                className="px-4 py-2 font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white disabled:opacity-70"
+              >
+                {deleting ? (
+                  <span className="flex items-center justify-center">
+                    <Loader2 className="animate-spin mr-2 h-5 w-5 inline" />
+                    Deleting...
+                  </span>
+                ) : (
+                  'Delete'
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
