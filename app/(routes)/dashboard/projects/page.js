@@ -50,6 +50,7 @@ const checkAuthAndLoadProjects = async () => {
     }
 
     const data = await res.json();
+    console.log('Projects fetched:', data);
     setProjects(data);
     
   } catch (err) {

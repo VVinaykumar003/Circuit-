@@ -188,6 +188,8 @@ export async function GET(req) {
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
       console.log("Token decoded successfully:", decoded.email); // Debug log
+      console.log("decoded.role successfully:", decoded.role); // Debug log
+      console.log("decoded.roleInProject successfully:", decoded.roleInProject); // Debug log
     } catch (error) {
       console.error("Token verification failed:", error);
       return NextResponse.json(
@@ -208,6 +210,7 @@ export async function GET(req) {
     const projects = await Project.find(query)
       .sort({ createdAt: -1 })
       .lean();
+      console.log("Projects fetched from DB:", projects); // Debug log
 
     console.log(`Found ${projects.length} projects for user ${decoded.email}`);
 
