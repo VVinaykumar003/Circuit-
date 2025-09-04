@@ -12,12 +12,13 @@ import { verifyAuth } from "@/lib/auth";
 // 🔹 GET → fetch all tasks
 export async function GET(req) {
   try {
-    // Authenticate user first
+    // ✅ Authenticate user
     const user = await authenticate(req);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-   // Connect to database with error handling
+
+    // ✅ Connect DB
     try {
       await dbConnect();
     } catch (dbError) {
@@ -28,44 +29,58 @@ export async function GET(req) {
       );
     }
 
-    // ✅ Get projectName from query parameters
+    // ✅ Extract query params
     const { searchParams } = new URL(req.url);
-    const projectName = searchParams.get('projectName')
-    const projectId = searchParams.get('projectId')
+    const projectName = searchParams.get("projectName");
+    const projectId = searchParams.get("projectId");
+
     let query = {};
 
+    // ✅ If projectName provided → resolve to projectId
     if (projectName) {
-      // ✅ Find project by name first, then use its _id
-       const Project = (await import('@/app/models/project')).default;
-      const project = await Project.findOne({ projectName: projectName });
-      
+      const Project = (await import("@/app/models/project")).default;
+      const project = await Project.findOne({ projectName });
+
       if (!project) {
-        return NextResponse.json({ error: "Project not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Project not found" },
+          { status: 404 }
+        );
       }
-      
+
       query.projectId = project._id;
+    } else if (projectId) {
+      query.projectId = new mongoose.Types.ObjectId(projectId);
     }
     
-    // Add role-based filtering
+
+console.log('user info:', user);
+
+    // ✅ Role-based filtering
     if (user.role === "member") {
-      // Members can only see tasks assigned to them
-      query["assignees.user"] = user.id;
+      const userId = new mongoose.Types.ObjectId(user.id);
+
+      query.$or = [
+        { "assignees.user": userId }, // tasks assigned to user
+        { createdBy: userId } // tasks created by user
+      ];
     }
 
-    // ✅ Simplified query without problematic populates
+    // ✅ Fetch tasks
     const tasks = await Task.find(query)
-      .populate("createdBy", "name email")  // Only populate basic user fields
-      .populate("assignees.user", "name email") // Populate assignee user info
-      .lean() // For better performance
+      .populate("createdBy", "name email")
+      .populate("assignees.user", "name email")
+      .lean()
       .exec();
 
     return NextResponse.json(tasks, { status: 200 });
   } catch (err) {
     console.error("GET /tasks error:", err);
     return NextResponse.json(
-      { 
+      {
         error: "Failed to fetch tasks",
-        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+        details:
+          process.env.NODE_ENV === "development" ? err.message : undefined,
       },
       { status: 500 }
     );
@@ -104,19 +119,40 @@ export async function POST(req) {
       }
     }
 
-    // ✅ Now mongoose.Types.ObjectId will work
+    // ✅ Create task
     const task = await Task.create({
       title: body.title,
       description: body.description,
       projectId: new mongoose.Types.ObjectId(body.projectId),
       createdBy: new mongoose.Types.ObjectId(user._id),
       assignedBy: new mongoose.Types.ObjectId(user._id),
-      assignees: body.assignees.map(assignee => ({
+      assignees: body.assignees.map((assignee) => ({
         user: new mongoose.Types.ObjectId(assignee.user),
-        state: assignee.state || "assigned"
+        state: assignee.state || "assigned",
       })),
       status: "pending",
     });
+
+    // 🔹 Trigger notifications for assignees
+    try {
+      const assigneeIds = body.assignees.map((a) => a.user);
+
+      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/notifications.sio`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userIds: assigneeIds,
+          title: "New Task Assigned",
+          message: `${user.name || "Someone"} assigned you a task: ${body.title}`,
+          type: "task",
+          data: { taskId: task._id, projectId: body.projectId },
+        }),
+      });
+    } catch (notifErr) {
+      console.error("Failed to send notifications:", notifErr);
+    }
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
@@ -124,7 +160,8 @@ export async function POST(req) {
     return NextResponse.json(
       {
         error: "Failed to create task",
-        details: process.env.NODE_ENV === "development" ? error.message : undefined,
+        details:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
       },
       { status: 500 }
     );

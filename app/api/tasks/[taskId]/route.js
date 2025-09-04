@@ -51,6 +51,7 @@ export async function PUT(req, { params }) {
     }
 
     // ✅ Members can update ONLY their own assigned task
+    console.log('user details :',user.role, task.assignedTo, user._id);
     if (user.role === "member" && task.assignedTo.toString() !== user._id.toString()) {
       return NextResponse.json({ error: "Forbidden: Cannot update others' tasks" }, { status: 403 });
     }

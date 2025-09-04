@@ -5,7 +5,7 @@ import User from "@/app/models/User";
 export default async function handler(req, res) {
   await dbConnect();
 
-  if (req.method === "POST") {
+  if (req.method === "POST") { 
     try {
       console.log("Request body:", req.body);
       const { email, notificationPermission, time } = req.body;

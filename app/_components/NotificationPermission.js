@@ -2,10 +2,9 @@
 import { useEffect, useState } from "react";
 
 const NotificationPermission = () => {
-  const [isRegistered, setIsRegistered] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   useEffect(() => {
-    // Fetch current logged-in user email from your session API
     const fetchUserEmail = async () => {
       try {
         const res = await fetch("/api/auth/session");
@@ -14,48 +13,52 @@ const NotificationPermission = () => {
           return data.email || null;
         }
       } catch (error) {
-        console.error("Failed to fetch user session", error);
+        console.error("Failed to fetch user session:", error);
       }
       return null;
     };
 
-
     const requestAndSavePermission = async (userEmail) => {
-      if (!userEmail) return;
+      if (!userEmail || registered) return;
 
       try {
-        if ("Notification" in window && !isRegistered) {
-          const permission = await Notification.requestPermission();
+        if ("Notification" in window) {
+          let permission = Notification.permission;
 
-          if (permission === "granted") {
-            await fetch("/api/notificationsPermission", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                email: userEmail,
-                notificationPermission: permission, // expected to be 'granted'
-                time: new Date().toISOString(),
-              }),
-            });
-          } else {
-            console.log("Notification permission denied.");
+          // Only request if it's not already granted/denied
+          if (permission === "default") {
+            permission = await Notification.requestPermission();
           }
 
-          setIsRegistered(true);
+          // Save result in DB regardless of choice
+          await fetch("/api/notificationsPermission", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: userEmail,
+              notificationPermission: permission, // "granted" | "denied" | "default"
+              time: new Date().toISOString(),
+            }),
+          });
+
+          setRegistered(true);
         }
       } catch (error) {
-        console.error("Error requesting notification permission or saving to MongoDB:", error);
+        console.error(
+          "Error requesting notification permission or saving to MongoDB:",
+          error
+        );
       }
     };
 
-    if (!isRegistered) {
-      fetchUserEmail().then((email) => requestAndSavePermission(email));
-    }
-  }, [isRegistered]);
+    fetchUserEmail().then((email) => {
+      if (email) requestAndSavePermission(email);
+    });
+  }, [registered]);
 
-  return null;
+  return null; // no UI, just side effect
 };
 
 export default NotificationPermission;

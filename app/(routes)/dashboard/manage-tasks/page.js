@@ -63,6 +63,7 @@ function ManageAllTasks() {
           return;
         }
         const tasksData = await resTasks.json();
+        console.log('Fetched tasks:', tasksData);
         setTasks(tasksData);
         setError('');
         // Extract all tickets from tasks

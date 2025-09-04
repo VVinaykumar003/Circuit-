@@ -1,56 +1,82 @@
-import { NextResponse } from 'next/server';
-import { firestore } from '@/lib/firebaseAdmin';
-import admin from 'firebase-admin';
+import { NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb";
+import Notification from "@/app/models/Notification";
+import { getIO } from "@/lib/socket";
 
-export async function POST(request) {
+export const runtime = "nodejs"; // ensure Node runtime (not edge)
+
+export async function GET(req) {
   try {
-    const requestBody = await request.json();
+    await dbConnect();
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+    const unreadOnly = searchParams.get("unreadOnly") === "true";
 
-    if (!requestBody || !requestBody.email || !requestBody.notification) {
+    if (!userId) {
+      return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    }
+
+    const query = { userId };
+    if (unreadOnly) query.read = false;
+
+    const items = await Notification.find(query).sort({ createdAt: -1 }).lean();
+    return NextResponse.json({ data: items }, { status: 200 });
+  } catch (e) {
+    console.error("GET /api/notifications error:", e);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req) {
+  try {
+    await dbConnect();
+    const body = await req.json();
+
+    const { userIds, title, message, type = "general", data = {} } = body || {};
+    if (!Array.isArray(userIds) || userIds.length === 0 || !title || !message) {
       return NextResponse.json(
-        { message: 'Invalid request body. Email and notification are required.' },
+        { error: "userIds[], title, message are required" },
         { status: 400 }
       );
     }
 
-    const { email, notification } = requestBody;
+    // Persist notifications (one per user)
+    const docs = userIds.map((uid) => ({
+      userId: uid,
+      title,
+      message,
+      type,
+      data,
+      read: false,
+    }));
+    const saved = await Notification.insertMany(docs);
 
-    // Fetch the tokens associated with the specified email
-    const tokensSnapshot = await firestore
-      .collection('pushNotifications')
-      .where('email', '==', email)
-      .get();
-
-    if (tokensSnapshot.empty) {
-      return NextResponse.json({ message: 'No tokens found for the specified email.' }, { status: 404 });
+    // Emit real-time to user rooms
+    const io = getIO();
+    if (io) {
+      userIds.forEach((uid) => {
+        io.to(`user:${uid}`).emit("notification", {
+          title,
+          message,
+          type,
+          data,
+          createdAt: new Date().toISOString(),
+        });
+      });
     }
 
-    // Extract tokens from the documents
-    const tokens = tokensSnapshot.docs.map((doc) => doc.data().token);
-
-    if (tokens.length === 0) {
-      return NextResponse.json({ message: 'No tokens available for the specified email.' }, { status: 404 });
-    }
-
-    // Create the message payload
-    const message = {
-      data: {
-        title: notification.title,
-        body: notification.body,
-        
-        
-      },
-      tokens,  // Array of FCM tokens
-    };
-
-    // Send notifications to each token
-    const response = await admin.messaging().sendEachForMulticast(message);
-
-    // console.log('FCM response:', response);
-
-    return NextResponse.json({ message: 'Notification sent successfully!', response }, { status: 200 });
-  } catch (error) {
-    console.error('Error sending notification:', error);
-    return NextResponse.json({ message: 'Error sending notification.', error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { message: "Notifications sent", data: saved },
+      { status: 201 }
+    );
+  } catch (e) {
+    console.error("POST /api/notifications error:", e);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
