@@ -166,63 +166,41 @@ export async function POST(req) {
 // ✅ GET: Validate user session (check token from header)
 // For example, your frontend calls this after login to confirm session is valid
 export async function GET(req) {
-   await dbConnect();
+  await dbConnect();
   try {
-
-    // Extract token from Authorization header
     const authHeader = req.headers.get("authorization");
-    console.log("Auth Header received:", authHeader); // Debug log
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { message: "No token provided" }, 
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "No token provided" }, { status: 401 });
     }
 
     const token = authHeader.split(" ")[1];
-    console.log("Token extracted:", token ? "Present" : "Missing"); // Debug log
 
-    // Verify token
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log("Token decoded successfully:", decoded.email); // Debug log
-      console.log("decoded.role successfully:", decoded.role); // Debug log
-      console.log("decoded.roleInProject successfully:", decoded.roleInProject); // Debug log
     } catch (error) {
       console.error("Token verification failed:", error);
-      return NextResponse.json(
-        { message: "Invalid token" }, 
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Invalid token" }, { status: 401 });
     }
 
-    // Connect to database
-    await dbConnect();
-
-    // Get projects with role-based filtering
+    // role based filtering
     let query = {};
-    if (decoded.role !== 'admin') {
-      query.members = decoded.email; // Filter projects by user membership
+    if (decoded.role === "member") {
+      query = { "participants.email": decoded.email };
+    } else {
+      // Admin/manager can see all projects
+      query = {};
     }
 
-    const projects = await Project.find(query)
-      .sort({ createdAt: -1 })
-      .lean();
-      console.log("Projects fetched from DB:", projects); // Debug log
-
-    console.log(`Found ${projects.length} projects for user ${decoded.email}`);
+    const projects = await Project.find(query).sort({ createdAt: -1 }).lean();
 
     return NextResponse.json(projects);
-
   } catch (error) {
     console.error("Projects API Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch projects" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch projects" }, { status: 500 });
   }
 }
+
 
 

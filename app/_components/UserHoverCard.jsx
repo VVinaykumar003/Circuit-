@@ -9,14 +9,15 @@ export default function UserHoverCard({ email }) {
 
   // Fetch user details when hovered
   useEffect(() => {
-    if (isHovered && !user && email) {
+      
+    if (isHovered  && email) {
       setLoading(true);
       fetch(`/api/user/${encodeURIComponent(email)}`)
         .then((res) => res.json())
         .then((data) => {
-          setUser(data.user);
-
-          // console.log("User List  : ",data.user)
+          setUser(data.error ? null : data);
+// console.log("User List  : ",data)
+        
         })
         .catch((err) => {
           console.error("Error fetching user:", err);

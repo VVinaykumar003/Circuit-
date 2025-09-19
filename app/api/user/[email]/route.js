@@ -10,6 +10,7 @@ export async function GET(request, { params }) {
     const email = decodeURIComponent(params.email);
     const user = await User.findOne({ email }).select("-password");
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    // console.log("user:", user);
     return NextResponse.json(user);
   } catch (error) {
     return NextResponse.json(

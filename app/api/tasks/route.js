@@ -5,6 +5,7 @@ import Task from "@/app/models/Tasks";
 import { authenticate } from "@/lib/middleware/authenticate";
 import { checkRole } from "@/lib/middleware/checkRole";
 import { verifyAuth } from "@/lib/auth";
+// import { getIO } from "@/server";
 
 // ... rest of your code
 
@@ -54,7 +55,7 @@ export async function GET(req) {
     }
     
 
-console.log('user info:', user);
+// console.log('user info:', user);
 
     // ✅ Role-based filtering
     if (user.role === "member") {
@@ -88,9 +89,9 @@ console.log('user info:', user);
 }
 
 // 🔹 POST → create new task (Admin + Manager only)
-export async function POST(req) {
+
+export async function POST(req) { 
   try {
-    // Verify authentication
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -98,28 +99,20 @@ export async function POST(req) {
 
     const token = authHeader.split(" ")[1];
     const user = await verifyAuth(token);
-
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     await dbConnect();
 
-    // Parse body
     const body = await req.json();
-
-    // Validate required fields
     const requiredFields = ["title", "description", "projectId", "assignees"];
     for (const field of requiredFields) {
       if (!body[field] || (field === "assignees" && body.assignees.length === 0)) {
-        return NextResponse.json(
-          { error: `Missing required field: ${field}` },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 });
       }
     }
 
-    // ✅ Create task
     const task = await Task.create({
       title: body.title,
       description: body.description,
@@ -133,15 +126,14 @@ export async function POST(req) {
       status: "pending",
     });
 
-    // 🔹 Trigger notifications for assignees
+    // 🔹 Send notifications to assignees
     try {
-      const assigneeIds = body.assignees.map((a) => a.user);
+      const assigneeIds = [...new Set(body.assignees.map((a) => a.user))];
+      console.log("Sending notifications to:", assigneeIds);
 
-      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/notifications.sio`, {
+      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/notificationSio`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userIds: assigneeIds,
           title: "New Task Assigned",
@@ -154,15 +146,11 @@ export async function POST(req) {
       console.error("Failed to send notifications:", notifErr);
     }
 
-    return NextResponse.json(task, { status: 201 });
+    return NextResponse.json(task, { status: 201 }); 
   } catch (error) {
     console.error("Task creation error:", error);
     return NextResponse.json(
-      {
-        error: "Failed to create task",
-        details:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
-      },
+      { error: "Failed to create task", details: process.env.NODE_ENV === "development" ? error.message : undefined },
       { status: 500 }
     );
   }

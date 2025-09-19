@@ -1,21 +1,34 @@
-// models/ProjectUpdate.js
 import mongoose from "mongoose";
 
-const WorkUpdateSchema = new mongoose.Schema({
-  msg: { type: String, required: true },
-  source: { type: String }, // optional file URL
+const workUpdateSchema = new mongoose.Schema({
+  email: String,
+  date: String,
+  workUpdate: {
+    msg: String,
+    source: { type: String, default: "No Files" }
+  }
 });
 
-const UpdateSchema = new mongoose.Schema({
-  email: { type: String, required: true },
-  date: { type: String, required: true }, // YYYY-MM-DD format
-  workUpdate: { type: WorkUpdateSchema, required: true },
+const announcementSchema = new mongoose.Schema({
+  fromEmail: String,
+  date: String,
+  post: {
+    msg: String,
+    file: { type: String, default: "No Files" }
+  },
+  toEmail: [
+    {
+      email: String,
+      state: { type: Boolean, default: true } // true = unread, false = read
+    }
+  ]
 });
 
-const ProjectUpdateSchema = new mongoose.Schema({
-  projectName: { type: String, required: true },
-  updates: { type: [UpdateSchema], default: [] },
-});
+const projectUpdateSchema = new mongoose.Schema({
+  projectId: { type: mongoose.Schema.Types.ObjectId, ref: "Project" },
+  projectName: String,
+  updates: [workUpdateSchema],
+  announcements: [announcementSchema]
+}, { timestamps: true });
 
-export default mongoose.models.ProjectUpdate ||
-  mongoose.model("ProjectUpdate", ProjectUpdateSchema);
+export default mongoose.models.ProjectUpdate || mongoose.model("ProjectUpdate", projectUpdateSchema);

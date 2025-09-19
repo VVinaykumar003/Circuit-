@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { socket } from '@/app/(routes)/dashboard/_components/useSocket';
 
 export default function CreateTaskForm({ projectId, projectName, currentUser, onTaskCreated }) {
   const [title, setTitle] = useState('');
@@ -13,6 +14,7 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
   const [estimatedHours, setEstimatedHours] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // const [assignees, setAssignees] = useState("");
   const [error, setError] = useState('');
   const router = useRouter();
 
@@ -68,10 +70,47 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
-      });
+    });
+    alert("Task created!");
+      
 
       if (!res.ok) throw new Error('Failed to create task');
 
+     
+      const newTask = await res.json(); // 👈 get task from backend response
+      // ✅ send notification to socket server
+socket.emit("TaskCreated", {
+  senderId: currentUser._id,
+  assigneeIds, 
+  message: `📝 New task assigned: "${title}" in project "${projectName}"`,
+  taskId: newTask._id,
+  projectId,
+  type: "task_assigned",
+  createdAt: new Date(),
+});
+
+
+      // Send notifications safely
+      // const notificationPromises = assigneeIds.map(async (userId) => {
+      //   try {
+      //      sendNotification(userId, {
+      //       senderId: currentUser._id,
+      //       receiverId: userId,
+      //       message: `📝 New task assigned: "${title}" in project "${projectName}"`,
+      //       taskId: newTask._id,
+      //       projectId: projectId,
+      //       type: "task_assigned",
+      //       createdAt: new Date(),
+      //     });
+      //   } catch (notifError) {
+      //     console.warn("Failed to send notification:", notifError);
+      //   }
+      // });
+
+     
+      //  if(res.ok){
+      //  // Wait for notifications but don't let them block the success flow
+      // Promise.allSettled(notificationPromises);}
       toast.success('Task created successfully!');
       setTitle('');
       setDescription('');
@@ -80,6 +119,7 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
       setDueDate('');
       setAssigneeIds([]);
       onTaskCreated?.();
+      router.push(`/dashboard/projects/${projectId}`);
     } catch (err) {
       console.error(err);
       setError(err.message);

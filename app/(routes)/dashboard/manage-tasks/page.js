@@ -5,6 +5,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import NotificationBell from "@/components/NotificationBell";
 
 function ManageAllTasks() {
   const router = useRouter();
@@ -64,11 +65,11 @@ function ManageAllTasks() {
         }
         const tasksData = await resTasks.json();
         console.log('Fetched tasks:', tasksData);
-        setTasks(tasksData);
+        setTasks(Array.isArray(tasksData) ? tasksData.slice().reverse() : []);
         setError('');
         // Extract all tickets from tasks
         const allTickets = tasksData.flatMap((task) => task.tickets || []);
-        setTickets(allTickets);
+        setTickets(allTickets.slice().reverse() || []);
       } catch (error) {
         setError('Failed to load data');
       } finally {
@@ -83,6 +84,12 @@ function ManageAllTasks() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 bg-white dark:bg-slate-950">
+      {/* Notifications only for members */}
+    {userRole === "member" || 'manager' && (
+      <div className="mb-4 flex justify-end">
+        <NotificationBell userId={userId} />
+      </div>
+    )}
       {/* Tabs navigation */}
       <div className="flex border-b border-gray-300 dark:border-slate-700 mb-6">
         <button

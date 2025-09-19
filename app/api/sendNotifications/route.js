@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Notification from "@/app/models/Notification";
-import { getIO } from "@/lib/socket";
+import { getIO } from "@/server";
 
 export const runtime = "nodejs"; // ensure Node runtime (not edge)
 

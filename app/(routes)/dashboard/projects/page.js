@@ -17,7 +17,7 @@ function formatDate(dateStr) {
   });
 }
 
-const ProjectList = () => {
+const ProjectList = () => { 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();

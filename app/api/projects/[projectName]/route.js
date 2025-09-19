@@ -6,7 +6,7 @@ import { verifyAuth } from "@/lib/auth";
 
 export async function GET(request, { params }) {
   await dbConnect();
-  
+   
   const projectName = params.projectName;
 
   // Check if the param looks like an ObjectId

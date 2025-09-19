@@ -1,8 +1,6 @@
-const { createServer } = require("node:http");
-const next = require("next");
-
-
-const  { Server } = require( "socket.io");
+import { createServer } from "node:http";
+import next from "next";
+import { Server } from "socket.io";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
@@ -18,6 +16,7 @@ app.prepare().then(() => {
 
   io.on("connection", (socket) => {
     // ...
+    console.log("🔌 Client connected",socket.id);
   });
 
   httpServer
