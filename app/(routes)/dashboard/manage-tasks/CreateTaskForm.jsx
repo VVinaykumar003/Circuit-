@@ -17,6 +17,7 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
   // const [assignees, setAssignees] = useState("");
   const [error, setError] = useState('');
   const router = useRouter();
+  const socket = io();
 
   useEffect(() => {
     async function fetchParticipants() {
