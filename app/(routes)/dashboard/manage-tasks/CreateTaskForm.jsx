@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { socket } from '@/app/(routes)/dashboard/_components/useSocket';
+import { io } from "socket.io-client";
 
 export default function CreateTaskForm({ projectId, projectName, currentUser, onTaskCreated }) {
   const [title, setTitle] = useState('');
